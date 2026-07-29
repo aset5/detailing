@@ -14,7 +14,7 @@ const {
   getServiceDuration,
   calculatePrice
 } = require('./lib/availability');
-const { sendBookingConfirmations, sendEmailConfirmation } = require('./lib/notifications');
+const { queueBookingNotifications, sendEmailConfirmation } = require('./lib/notifications');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -214,13 +214,9 @@ app.post('/api/bookings', async (req, res) => {
 
   const booking = db.prepare('SELECT * FROM bookings WHERE id = ?').get(result.lastInsertRowid);
 
-  const notifications = await sendBookingConfirmations(booking);
+  queueBookingNotifications(booking);
 
-  if (!notifications.email?.sent) {
-    console.warn('[Email] Confirmation not sent:', notifications.email?.reason || 'unknown');
-  }
-
-  res.status(201).json({ booking, notifications });
+  res.status(201).json({ booking, notifications: { queued: true } });
 });
 
 app.get('/booking/cancel-form/:id', (req, res) => {
@@ -484,15 +480,9 @@ app.post('/api/admin/bookings', requireAuth, async (req, res) => {
 
   updateClientStats(clientId);
   const booking = db.prepare('SELECT * FROM bookings WHERE id = ?').get(result.lastInsertRowid);
-  // send notifications for admin-created bookings as well
-  let notifications = null;
-  try {
-    notifications = await sendBookingConfirmations(booking);
-  } catch (err) {
-    console.error('[Notifications] Failed to send for admin-created booking:', err);
-  }
+  queueBookingNotifications(booking);
 
-  res.status(201).json({ booking, notifications });
+  res.status(201).json({ booking, notifications: { queued: true } });
 });
 
 app.put('/api/admin/bookings/:id', requireAuth, async (req, res) => {
@@ -581,16 +571,11 @@ app.put('/api/admin/bookings/:id', requireAuth, async (req, res) => {
   const booking = getDb().prepare('SELECT * FROM bookings WHERE id = ?').get(req.params.id);
 
   // If booking was changed to confirmed, send notifications
-  let notifications = null;
-  try {
-    if (existing.status !== 'confirmed' && updatedStatus === 'confirmed') {
-      notifications = await sendBookingConfirmations(booking);
-    }
-  } catch (err) {
-    console.error('[Notifications] Failed to send on admin update:', err);
+  if (existing.status !== 'confirmed' && updatedStatus === 'confirmed') {
+    queueBookingNotifications(booking);
   }
 
-  res.json({ booking, notifications });
+  res.json({ booking, notifications: { queued: true } });
 });
 
 app.delete('/api/admin/bookings/:id', requireAuth, (req, res) => {

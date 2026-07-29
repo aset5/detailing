@@ -6,7 +6,7 @@ const {
   isSlotAvailable,
   calculatePrice
 } = require('../../lib/availability');
-const { sendBookingConfirmations } = require('../../lib/notifications');
+const { queueBookingNotifications } = require('../../lib/notifications');
 
 function parseLocalDate(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number);
@@ -87,9 +87,7 @@ async function saveBooking(body) {
   const dbModule = getDbModule();
 
   if (!dbModule) {
-    const booking = buildBookingRecord(body, pkg, addonList, totalPrice, `web-${Date.now()}`);
-    const notifications = await sendBookingConfirmations(booking);
-    return { booking, notifications };
+    return { booking: buildBookingRecord(body, pkg, addonList, totalPrice, `web-${Date.now()}`) };
   }
 
   const duration = getServiceDuration(serviceId);
@@ -119,17 +117,16 @@ async function saveBooking(body) {
 
     dbModule.updateClientStats(clientId);
     const booking = db.prepare('SELECT * FROM bookings WHERE id = ?').get(result.lastInsertRowid);
-    const notifications = await sendBookingConfirmations(booking);
-    return { booking, notifications };
+    return { booking };
   } catch (dbErr) {
-    console.error('[bookings] DB save failed, sending notifications only:', dbErr.message);
-    const booking = buildBookingRecord(body, pkg, addonList, totalPrice, `web-${Date.now()}`);
-    const notifications = await sendBookingConfirmations(booking);
-    return { booking, notifications };
+    console.error('[bookings] DB save failed:', dbErr.message);
+    return {
+      booking: buildBookingRecord(body, pkg, addonList, totalPrice, `web-${Date.now()}`)
+    };
   }
 }
 
-exports.handler = async (event) => {
+exports.handler = async (event, context) => {
   if (event.httpMethod !== 'POST') {
     return json(405, { error: 'Method not allowed' });
   }
@@ -161,8 +158,10 @@ exports.handler = async (event) => {
       return json(400, { error: 'Invalid booking time' });
     }
 
-    const result = await saveBooking(body);
-    return json(201, result);
+    const { booking } = await saveBooking(body);
+    queueBookingNotifications(booking, context);
+
+    return json(201, { booking, notifications: { queued: true } });
   } catch (err) {
     console.error('[bookings]', err);
     return json(err.statusCode || 500, { error: err.message || 'Booking failed' });

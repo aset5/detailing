@@ -414,6 +414,8 @@ async function submitBooking() {
     const successEl = document.getElementById('bookingSuccess');
     if (data.notifications?.email?.sent) {
       successEl.textContent = 'Booking submitted! A confirmation email with your appointment details has been sent to your inbox.';
+    } else if (data.notifications?.queued) {
+      successEl.textContent = 'Booking submitted! A confirmation email will arrive shortly.';
     } else {
       successEl.textContent = 'Booking submitted successfully. We will contact you shortly.';
     }
