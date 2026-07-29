@@ -25,6 +25,7 @@
                 <a href="#features" class="nav-item">Why Us</a>
                 <a href="#testimonials" class="nav-item">Reviews</a>
                 <a href="#pricing" class="nav-item">Pricing</a>
+                <a href="#calendar" class="nav-item">Calendar</a>
             </nav>
 
             <div class="header-actions">
@@ -457,6 +458,30 @@
             </div>
         </div>
     </div>
+
+    <section class="availability-section" id="calendar">
+        <div class="availability-container">
+            <div class="availability-header reveal-element">
+                <h2>Availability Calendar</h2>
+                <p>See booked dates and times. Green = open, yellow = partially booked, red = full.</p>
+            </div>
+            <div class="availability-legend reveal-element">
+                <div class="legend-item"><span class="legend-dot available"></span> Available</div>
+                <div class="legend-item"><span class="legend-dot partial"></span> Partially booked</div>
+                <div class="legend-item"><span class="legend-dot full"></span> Full</div>
+                <div class="legend-item"><span class="legend-dot closed"></span> Closed</div>
+            </div>
+            <div class="cal-nav reveal-element">
+                <button type="button" onclick="changeMonth(-1)">&#8249; Prev</button>
+                <h3 id="calTitle">Loading...</h3>
+                <button type="button" onclick="changeMonth(1)">Next &#8250;</button>
+            </div>
+            <div class="cal-grid" id="calGrid"></div>
+            <div class="cal-day-detail" id="calDayDetail">
+                <p class="cal-day-detail-placeholder">Select a date to see booked and available times.</p>
+            </div>
+        </div>
+    </section>
 
     <!-- Footer Space Section -->
     <footer class="site-footer">

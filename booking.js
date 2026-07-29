@@ -201,6 +201,7 @@ function getServices() {
 async function initBooking() {
   setupAddressAutocomplete();
   prewarmServer();
+  initAvailabilityCalendar();
   await ensureAppConfig();
   setDateInputMin();
 }
@@ -442,6 +443,13 @@ async function submitBooking() {
     successEl.style.display = 'block';
     document.getElementById('bookingFooter').style.display = 'none';
     document.querySelector('.booking-steps').style.display = 'none';
+
+    if (typeof refreshAvailabilityCalendar === 'function') {
+      refreshAvailabilityCalendar();
+      if (bookingState.bookingDate) {
+        renderCalDayDetail(bookingState.bookingDate);
+      }
+    }
   } catch (err) {
     clearTimers();
     const msg = err.name === 'AbortError'
@@ -576,6 +584,138 @@ const DEFAULT_SERVICES = {
   allowedStartTimes: ['09:00', '13:00', '17:00'],
   largeVehicleSurcharge: 40
 };
+
+// ─── Availability Calendar ────────────────────────────────────
+
+const now = new Date();
+let calYear = now.getFullYear();
+let calMonth = now.getMonth() + 1;
+let calSelectedDate = '';
+
+function initAvailabilityCalendar() {
+  const current = new Date();
+  calYear = current.getFullYear();
+  calMonth = current.getMonth() + 1;
+  renderAvailabilityCalendar();
+}
+
+async function refreshAvailabilityCalendar() {
+  await renderAvailabilityCalendar();
+  if (calSelectedDate) {
+    renderCalDayDetail(calSelectedDate);
+  }
+}
+
+async function renderAvailabilityCalendar() {
+  const grid = document.getElementById('calGrid');
+  const title = document.getElementById('calTitle');
+  if (!grid) return;
+
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
+  if (title) title.textContent = `${monthNames[calMonth - 1]} ${calYear}`;
+
+  try {
+    const data = await fetchJson(`/api/availability/month?year=${calYear}&month=${calMonth}`);
+    const firstDay = new Date(calYear, calMonth - 1, 1).getDay();
+    const adjustedFirst = firstDay === 0 ? 6 : firstDay - 1;
+
+    let html = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+      .map(d => `<div class="cal-day-label">${d}</div>`).join('');
+
+    for (let i = 0; i < adjustedFirst; i++) {
+      html += '<div class="cal-day empty"></div>';
+    }
+
+    for (const day of data.days) {
+      const dayNum = parseInt(day.date.split('-')[2], 10);
+      const clickable = day.status === 'available' || day.status === 'partial';
+      const bookedBadge = day.bookingsCount > 0
+        ? `<span class="cal-booked-badge" title="${day.bookingsCount} booking(s)">${day.bookingsCount}</span>`
+        : '';
+      html += `<div class="cal-day ${day.status}${calSelectedDate === day.date ? ' selected' : ''}"
+        ${clickable ? `onclick="selectCalDay('${day.date}')"` : `onclick="showCalDayDetail('${day.date}')"`}
+        title="${day.status}${day.bookingsCount ? ` · ${day.bookingsCount} booked` : ''}">
+        <span class="cal-day-num">${dayNum}</span>${bookedBadge}</div>`;
+    }
+
+    grid.innerHTML = html;
+  } catch {
+    grid.innerHTML = '<p class="cal-load-error">Could not load calendar</p>';
+  }
+}
+
+async function renderCalDayDetail(date) {
+  const panel = document.getElementById('calDayDetail');
+  if (!panel || !date) return;
+
+  calSelectedDate = date;
+  panel.innerHTML = '<p class="cal-day-detail-loading">Loading times...</p>';
+
+  try {
+    const data = await fetchJson(`/api/availability/day?date=${encodeURIComponent(date)}`);
+    const slotsHtml = data.slots.map(slot => {
+      const label = formatTimeDisplay(slot.time);
+      if (slot.status === 'booked') {
+        return `<div class="cal-slot booked"><span>${label}</span><strong>Booked${slot.service ? ` · ${slot.service}` : ''}</strong></div>`;
+      }
+      if (slot.status === 'blocked') {
+        return `<div class="cal-slot blocked"><span>${label}</span><strong>Unavailable</strong></div>`;
+      }
+      return `<div class="cal-slot available"><span>${label}</span><strong>Available</strong></div>`;
+    }).join('');
+
+    panel.innerHTML = `
+      <div class="cal-day-detail-header">
+        <h4>${formatDateDisplay(date)}</h4>
+        <button type="button" class="cal-book-btn" onclick="openBookingForDate('${date}')">Book this day</button>
+      </div>
+      <div class="cal-slots-list">${slotsHtml}</div>
+    `;
+  } catch {
+    panel.innerHTML = '<p class="cal-day-detail-placeholder">Could not load times for this date.</p>';
+  }
+}
+
+function showCalDayDetail(date) {
+  calSelectedDate = date;
+  renderAvailabilityCalendar();
+  renderCalDayDetail(date);
+}
+
+function changeMonth(delta) {
+  calMonth += delta;
+  if (calMonth > 12) { calMonth = 1; calYear++; }
+  if (calMonth < 1) { calMonth = 12; calYear--; }
+  renderAvailabilityCalendar();
+}
+
+function selectCalDay(date) {
+  bookingState.bookingDate = date;
+  bookingState.bookingTime = '';
+  calSelectedDate = date;
+
+  const dateInput = document.getElementById('inputDate');
+  if (dateInput) dateInput.value = date;
+
+  renderAvailabilityCalendar();
+  renderCalDayDetail(date);
+
+  if (document.getElementById('step3')?.classList.contains('active')) {
+    loadTimeSlots();
+  }
+}
+
+function openBookingForDate(date) {
+  openBookingModal(null, '');
+  bookingState.bookingDate = date;
+  calSelectedDate = date;
+  const dateInput = document.getElementById('inputDate');
+  if (dateInput) dateInput.value = date;
+  goToStep(3);
+  loadTimeSlots();
+  renderCalDayDetail(date);
+}
 
 async function loadTimeSlots() {
   const container = document.getElementById('timeSlots');

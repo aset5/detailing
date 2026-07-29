@@ -151,6 +151,39 @@ app.get('/api/availability/month', (req, res) => {
   res.json({ year, month, days });
 });
 
+app.get('/api/availability/day', (req, res) => {
+  const { date } = req.query;
+  if (!date) return res.status(400).json({ error: 'date required' });
+
+  const allowedTimes = services.allowedStartTimes || ['09:00', '13:00', '17:00'];
+  const bookings = getAllBookings().filter(
+    b => b.booking_date === date && b.status !== 'cancelled'
+  );
+  const blocked = getAllBlocked().filter(b => b.block_date === date);
+  const fullDayBlock = blocked.some(b => b.is_full_day);
+
+  const slots = allowedTimes.map(time => {
+    if (fullDayBlock) {
+      return { time, status: 'blocked' };
+    }
+    const block = blocked.find(b => b.block_time === time);
+    if (block) {
+      return { time, status: 'blocked' };
+    }
+    const booking = bookings.find(b => b.booking_time === time);
+    if (booking) {
+      return { time, status: 'booked', service: booking.service_name };
+    }
+    return { time, status: 'available' };
+  });
+
+  res.json({
+    date,
+    slots,
+    bookingsCount: bookings.length
+  });
+});
+
 app.get('/api/availability/slots', (req, res) => {
   const { date, serviceId } = req.query;
   if (!date || !serviceId) return res.status(400).json({ error: 'date and serviceId required' });
