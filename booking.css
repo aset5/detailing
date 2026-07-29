@@ -604,34 +604,37 @@
 }
 
 .time-slot {
-    padding: 0.7rem;
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
-    text-align: center;
-    font-size: 0.9rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.15s;
-    background: #ffffff;
+  padding: 0.7rem;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 700;
+  transition: all 0.15s;
 }
 
-.time-slot:hover {
-    border-color: var(--primary-yellow);
+.time-slot.available {
+  background: linear-gradient(135deg, var(--primary-yellow), #f4c542);
+  border-color: var(--primary-yellow);
+  color: #111827;
+  cursor: pointer;
 }
 
-.time-slot.selected {
-    background: var(--primary-yellow);
-    border-color: var(--primary-yellow);
-    color: var(--text-main);
+.time-slot.available:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(241, 196, 15, 0.25);
 }
 
-.time-slot.disabled {
-  opacity: 0.45;
+.time-slot.available.selected {
+  box-shadow: inset 0 0 0 2px #111827;
+}
+
+.time-slot.booked {
+  background: #e74c3c;
+  border-color: #c0392b;
+  color: #fff;
   cursor: not-allowed;
-  background: rgba(231, 76, 60, 0.08);
-  color: #c0392b;
-  border-color: rgba(231, 76, 60, 0.25);
-  text-decoration: line-through;
+  opacity: 1;
 }
 
 .no-slots-msg {
