@@ -15,6 +15,7 @@
     --border-color: #e5e7eb;
     --bottom-nav-height: 72px;
     --top-bar-height: 48px;
+    --admin-panel-width: min(100%, 480px);
 }
 
 body {
@@ -102,7 +103,8 @@ body {
     display: none;
     min-height: 100vh;
     flex-direction: column;
-    max-width: 480px;
+    width: 100%;
+    max-width: var(--admin-panel-width);
     margin: 0 auto;
     background: var(--light-bg);
     position: relative;
@@ -117,7 +119,7 @@ body {
     left: 50%;
     transform: translateX(-50%);
     width: 100%;
-    max-width: 480px;
+    max-width: var(--admin-panel-width);
     height: var(--top-bar-height);
     background: var(--light-bg);
     border-bottom: 1px solid var(--border-color);
@@ -400,7 +402,7 @@ body {
 .fab-filter {
     position: fixed;
     bottom: calc(var(--bottom-nav-height) + 1rem);
-    right: calc(50% - 240px + 1rem);
+    right: max(1rem, calc((100vw - var(--admin-panel-width)) / 2 + 1rem));
     width: 48px;
     height: 48px;
     border-radius: 50%;
@@ -416,7 +418,7 @@ body {
     justify-content: center;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 520px) {
     .fab-filter {
         right: 1rem;
     }
@@ -429,7 +431,7 @@ body {
     left: 50%;
     transform: translateX(-50%);
     width: 100%;
-    max-width: 480px;
+    max-width: var(--admin-panel-width);
     height: var(--bottom-nav-height);
     background: var(--light-bg);
     border-top: 1px solid var(--border-color);
@@ -725,7 +727,7 @@ body {
     background: var(--light-bg);
     border-radius: 16px 16px 0 0;
     width: 100%;
-    max-width: 480px;
+    max-width: var(--admin-panel-width);
     max-height: 90vh;
     overflow-y: auto;
     padding: 1.5rem;
@@ -883,12 +885,31 @@ body {
 
 /* Desktop: wider layout */
 @media (min-width: 768px) {
-    .admin-layout {
-        max-width: 600px;
+    :root {
+        --admin-panel-width: 768px;
     }
 
-    .fab-filter {
-        right: calc(50% - 300px + 1rem);
+    .main-content {
+        padding-left: 2rem;
+        padding-right: 2rem;
+    }
+
+    .week-day-num {
+        width: 42px;
+        height: 42px;
+        font-size: 1rem;
+    }
+
+    .booking-card-body h3 {
+        font-size: 1.05rem;
+    }
+
+    .day-heading {
+        font-size: 1.05rem;
+    }
+
+    .section-header h1 {
+        font-size: 1.5rem;
     }
 
     .stats-grid {
@@ -908,5 +929,19 @@ body {
     .admin-modal-overlay {
         align-items: center;
         padding: 1rem;
+    }
+
+    .data-table {
+        font-size: 0.9rem;
+    }
+
+    .data-table td.comment-cell {
+        max-width: 240px;
+    }
+}
+
+@media (min-width: 1024px) {
+    :root {
+        --admin-panel-width: 960px;
     }
 }
