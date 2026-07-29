@@ -30,10 +30,48 @@ function renderTimeSlotButtons(times) {
   const container = document.getElementById('timeSlots');
   if (!container) return;
 
+  if (!times.length) {
+    container.innerHTML = '<p class="no-slots-msg">No available times for this date. Please choose another day.</p>';
+    bookingState.bookingTime = '';
+    return;
+  }
+
   container.innerHTML = times.map(time => `
       <div class="time-slot${bookingState.bookingTime === time ? ' selected' : ''}"
         onclick="selectTimeSlot('${time}')">${formatTimeDisplay(time)}</div>
     `).join('');
+}
+
+function renderTimeSlotButtonsFromDay(slots) {
+  const container = document.getElementById('timeSlots');
+  if (!container) return;
+
+  const hasAvailable = slots.some(slot => slot.status === 'available');
+  if (!hasAvailable) {
+    container.innerHTML = '<p class="no-slots-msg">All times are booked for this date. Please choose another day.</p>';
+    bookingState.bookingTime = '';
+    return;
+  }
+
+  container.innerHTML = slots.map(slot => {
+    const disabled = slot.status !== 'available';
+    const selected = bookingState.bookingTime === slot.time && !disabled;
+    const label = disabled
+      ? `${formatTimeDisplay(slot.time)} · Booked`
+      : formatTimeDisplay(slot.time);
+
+    return `<div class="time-slot${selected ? ' selected' : ''}${disabled ? ' disabled' : ''}"
+      ${disabled ? '' : `onclick="selectTimeSlot('${slot.time}')"`}
+      title="${disabled ? 'Already booked' : 'Available'}">${label}</div>`;
+  }).join('');
+
+  if (bookingState.bookingTime) {
+    const selected = slots.find(s => s.time === bookingState.bookingTime);
+    if (!selected || selected.status !== 'available') {
+      bookingState.bookingTime = '';
+      showError('This time is already booked. Please choose another slot.');
+    }
+  }
 }
 
 async function fetchJson(url) {
@@ -295,7 +333,7 @@ function goToStep(step) {
   backBtn.style.display = step === 1 ? 'none' : 'block';
   nextBtn.textContent = step === totalSteps ? 'Confirm Booking' : 'Continue';
 
-  if (step === 3 && bookingState.bookingDate) loadTimeSlots();
+  if (step === 3) loadTimeSlots();
   if (step === 2) {
     ensureAppConfig().then(() => {
       populateServiceOptions();
@@ -339,6 +377,10 @@ function validateStep(step) {
 }
 
 function nextStep() {
+  proceedNextStep();
+}
+
+async function proceedNextStep() {
   if (!validateStep(currentStep)) return;
 
   if (currentStep === 2) {
@@ -349,12 +391,38 @@ function nextStep() {
     bookingState.comment = document.getElementById('inputComment').value.trim();
   }
 
+  if (currentStep === 3) {
+    const slotOk = await verifySelectedSlot();
+    if (!slotOk) return;
+  }
+
   if (currentStep === totalSteps) {
     submitBooking();
     return;
   }
 
   goToStep(currentStep + 1);
+}
+
+async function verifySelectedSlot() {
+  if (!bookingState.bookingDate || !bookingState.bookingTime) return false;
+
+  try {
+    const data = await fetchJson(
+      `/api/availability/day?date=${encodeURIComponent(bookingState.bookingDate)}`
+    );
+    const slot = data.slots.find(s => s.time === bookingState.bookingTime);
+    if (!slot || slot.status !== 'available') {
+      showError('This time slot is no longer available. Please choose another time.');
+      renderTimeSlotButtonsFromDay(data.slots);
+      bookingState.bookingTime = '';
+      return false;
+    }
+    hideError();
+    return true;
+  } catch {
+    return true;
+  }
 }
 
 function prevStep() {
@@ -719,8 +787,15 @@ function openBookingForDate(date) {
 
 async function loadTimeSlots() {
   const container = document.getElementById('timeSlots');
-  if (!container || !bookingState.bookingDate || !bookingState.serviceId) {
-    if (container) container.innerHTML = '<p class="no-slots-msg">Select a service and date first</p>';
+  if (!container) return;
+
+  if (!bookingState.bookingDate) {
+    container.innerHTML = '<p class="no-slots-msg">Select a date first</p>';
+    return;
+  }
+
+  if (!bookingState.serviceId) {
+    container.innerHTML = '<p class="no-slots-msg">Select a service first</p>';
     return;
   }
 
@@ -733,24 +808,44 @@ async function loadTimeSlots() {
     return;
   }
 
-  const allowedTimes = getServices().allowedStartTimes || ['09:00', '13:00', '17:00'];
-  renderTimeSlotButtons(allowedTimes);
+  container.innerHTML = '<p class="no-slots-msg">Loading available times...</p>';
+  hideError();
 
+  try {
+    const data = await fetchJson(
+      `/api/availability/day?date=${encodeURIComponent(bookingState.bookingDate)}`
+    );
+    renderTimeSlotButtonsFromDay(data.slots);
+    return;
+  } catch {
+    // fall through to service-specific slots
+  }
+
+  const allowedTimes = getServices().allowedStartTimes || ['09:00', '13:00', '17:00'];
   try {
     const data = await fetchJson(
       `/api/availability/slots?date=${encodeURIComponent(bookingState.bookingDate)}&serviceId=${encodeURIComponent(bookingState.serviceId)}`
     );
-    const times = data.slots.filter(time => allowedTimes.includes(time));
-    if (times.length) renderTimeSlotButtons(times);
+    renderTimeSlotButtons(data.slots.filter(time => allowedTimes.includes(time)));
   } catch {
-    // Standard times already shown above
+    container.innerHTML = '<p class="no-slots-msg">Could not load time slots. Please try again.</p>';
   }
 }
 
 function selectTimeSlot(time) {
+  const slotEl = Array.from(document.querySelectorAll('.time-slot')).find(
+    el => el.textContent.trim().startsWith(formatTimeDisplay(time))
+  );
+  if (slotEl?.classList.contains('disabled')) {
+    showError('This time slot is already booked. Please choose another time.');
+    return;
+  }
+
   bookingState.bookingTime = time;
+  hideError();
   document.querySelectorAll('.time-slot').forEach(el => {
-    el.classList.toggle('selected', el.textContent.trim() === formatTimeDisplay(time));
+    const isMatch = el.textContent.trim().startsWith(formatTimeDisplay(time)) && !el.classList.contains('disabled');
+    el.classList.toggle('selected', isMatch);
   });
 }
 

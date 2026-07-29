@@ -626,9 +626,12 @@
 }
 
 .time-slot.disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-    text-decoration: line-through;
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: rgba(231, 76, 60, 0.08);
+  color: #c0392b;
+  border-color: rgba(231, 76, 60, 0.25);
+  text-decoration: line-through;
 }
 
 .no-slots-msg {
