@@ -1,6 +1,5 @@
 require('dotenv').config();
 
-const { getDb, findOrCreateClient, updateClientStats } = require('../../lib/db');
 const {
   services,
   getServiceDuration,
@@ -14,20 +13,120 @@ function parseLocalDate(dateStr) {
   return new Date(y, m - 1, d);
 }
 
-function getAllBookings() {
-  return getDb().prepare('SELECT * FROM bookings ORDER BY booking_date DESC, booking_time DESC').all();
-}
-
-function getAllBlocked() {
-  return getDb().prepare('SELECT * FROM blocked_slots ORDER BY block_date, block_time').all();
-}
-
 function json(statusCode, body) {
   return {
     statusCode,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   };
+}
+
+function getDbModule() {
+  try {
+    return require('../../lib/db');
+  } catch (err) {
+    console.error('[bookings] DB module unavailable:', err.message);
+    return null;
+  }
+}
+
+function getAllBookings() {
+  const dbModule = getDbModule();
+  if (!dbModule) return [];
+  try {
+    return dbModule.getDb().prepare('SELECT * FROM bookings ORDER BY booking_date DESC, booking_time DESC').all();
+  } catch {
+    return [];
+  }
+}
+
+function getAllBlocked() {
+  const dbModule = getDbModule();
+  if (!dbModule) return [];
+  try {
+    return dbModule.getDb().prepare('SELECT * FROM blocked_slots ORDER BY block_date, block_time').all();
+  } catch {
+    return [];
+  }
+}
+
+function buildBookingRecord(body, pkg, addonList, totalPrice, id) {
+  const now = new Date().toISOString();
+  return {
+    id,
+    name: body.name,
+    phone: body.phone || null,
+    email: body.email || null,
+    address: body.address,
+    vehicle_type: body.vehicleType,
+    service_id: body.serviceId,
+    service_name: pkg.name,
+    addons: JSON.stringify(addonList),
+    comment: body.comment || null,
+    booking_date: body.bookingDate,
+    booking_time: body.bookingTime,
+    duration_minutes: getServiceDuration(body.serviceId),
+    total_price: totalPrice,
+    status: 'pending',
+    created_at: now,
+    updated_at: now
+  };
+}
+
+async function saveBooking(body) {
+  const {
+    name, phone, email, address, vehicleType,
+    serviceId, addons, comment, bookingDate, bookingTime
+  } = body;
+
+  const pkg = services.packages.find(p => p.id === serviceId);
+  if (!pkg) throw new Error('Invalid service');
+
+  const addonList = Array.isArray(addons) ? addons : [];
+  const totalPrice = calculatePrice(serviceId, vehicleType, addonList);
+  const dbModule = getDbModule();
+
+  if (!dbModule) {
+    const booking = buildBookingRecord(body, pkg, addonList, totalPrice, `web-${Date.now()}`);
+    const notifications = await sendBookingConfirmations(booking);
+    return { booking, notifications };
+  }
+
+  const duration = getServiceDuration(serviceId);
+  const available = isSlotAvailable(
+    bookingDate, bookingTime, duration, getAllBookings(), getAllBlocked()
+  );
+  if (!available) {
+    const err = new Error('This time slot is no longer available');
+    err.statusCode = 409;
+    throw err;
+  }
+
+  try {
+    const clientId = dbModule.findOrCreateClient({ name, phone, email, address });
+    const db = dbModule.getDb();
+    const result = db.prepare(`
+      INSERT INTO bookings (
+        client_id, name, phone, email, address, vehicle_type,
+        service_id, service_name, addons, comment,
+        booking_date, booking_time, duration_minutes, total_price, status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+    `).run(
+      clientId, name, phone || null, email || null, address, vehicleType,
+      serviceId, pkg.name, JSON.stringify(addonList), comment || null,
+      bookingDate, bookingTime, duration, totalPrice
+    );
+
+    dbModule.updateClientStats(clientId);
+    const booking = db.prepare('SELECT * FROM bookings WHERE id = ?').get(result.lastInsertRowid);
+    const notifications = await sendBookingConfirmations(booking);
+    return { booking, notifications };
+  } catch (dbErr) {
+    console.error('[bookings] DB save failed, sending notifications only:', dbErr.message);
+    const booking = buildBookingRecord(body, pkg, addonList, totalPrice, `web-${Date.now()}`);
+    const notifications = await sendBookingConfirmations(booking);
+    return { booking, notifications };
+  }
 }
 
 exports.handler = async (event) => {
@@ -38,8 +137,8 @@ exports.handler = async (event) => {
   try {
     const body = JSON.parse(event.body || '{}');
     const {
-      name, phone, email, address, vehicleType,
-      serviceId, addons, comment, bookingDate, bookingTime
+      name, email, address, vehicleType,
+      serviceId, bookingDate, bookingTime
     } = body;
 
     if (!name || !email || !address || !vehicleType || !serviceId || !bookingDate || !bookingTime) {
@@ -62,41 +161,10 @@ exports.handler = async (event) => {
       return json(400, { error: 'Invalid booking time' });
     }
 
-    const pkg = services.packages.find(p => p.id === serviceId);
-    if (!pkg) return json(400, { error: 'Invalid service' });
-
-    const duration = getServiceDuration(serviceId);
-    const available = isSlotAvailable(
-      bookingDate, bookingTime, duration, getAllBookings(), getAllBlocked()
-    );
-    if (!available) {
-      return json(409, { error: 'This time slot is no longer available' });
-    }
-
-    const addonList = Array.isArray(addons) ? addons : [];
-    const totalPrice = calculatePrice(serviceId, vehicleType, addonList);
-    const clientId = findOrCreateClient({ name, phone, email, address });
-
-    const db = getDb();
-    const result = db.prepare(`
-      INSERT INTO bookings (
-        client_id, name, phone, email, address, vehicle_type,
-        service_id, service_name, addons, comment,
-        booking_date, booking_time, duration_minutes, total_price, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
-    `).run(
-      clientId, name, phone || null, email || null, address, vehicleType,
-      serviceId, pkg.name, JSON.stringify(addonList), comment || null,
-      bookingDate, bookingTime, duration, totalPrice
-    );
-
-    updateClientStats(clientId);
-    const booking = db.prepare('SELECT * FROM bookings WHERE id = ?').get(result.lastInsertRowid);
-    const notifications = await sendBookingConfirmations(booking);
-
-    return json(201, { booking, notifications });
+    const result = await saveBooking(body);
+    return json(201, result);
   } catch (err) {
     console.error('[bookings]', err);
-    return json(500, { error: err.message || 'Booking failed' });
+    return json(err.statusCode || 500, { error: err.message || 'Booking failed' });
   }
 };

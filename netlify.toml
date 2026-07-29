@@ -1,9 +1,10 @@
 [build]
-  command = "npm install"
+  command = "npm install && npm rebuild better-sqlite3"
   publish = "."
   functions = "netlify/functions"
 
 [functions]
+  node_bundler = "esbuild"
   external_node_modules = ["better-sqlite3"]
   included_files = ["data/services.json", "lib/**"]
 
@@ -11,18 +12,22 @@
   from = "/api/config"
   to = "/.netlify/functions/api-config"
   status = 200
+  force = true
 
 [[redirects]]
   from = "/api/availability/slots"
   to = "/.netlify/functions/api-availability-slots"
   status = 200
+  force = true
 
 [[redirects]]
   from = "/api/address/search"
   to = "/.netlify/functions/api-address-search"
   status = 200
+  force = true
 
 [[redirects]]
   from = "/api/bookings"
   to = "/.netlify/functions/api-bookings"
   status = 200
+  force = true

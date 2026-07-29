@@ -1,0 +1,4 @@
+/api/config /.netlify/functions/api-config 200!
+/api/availability/slots /.netlify/functions/api-availability-slots 200!
+/api/address/search /.netlify/functions/api-address-search 200!
+/api/bookings /.netlify/functions/api-bookings 200!

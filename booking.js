@@ -369,7 +369,15 @@ async function submitBooking() {
   nextBtn.disabled = true;
   nextBtn.textContent = 'Submitting...';
 
+  const resetBtn = () => {
+    nextBtn.disabled = false;
+    nextBtn.textContent = 'Confirm Booking';
+  };
+
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
+
     const res = await fetch('/api/bookings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -384,15 +392,21 @@ async function submitBooking() {
         comment: bookingState.comment,
         bookingDate: bookingState.bookingDate,
         bookingTime: bookingState.bookingTime
-      })
+      }),
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
+
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      throw new Error('Booking server is not available. Please try again in a few minutes.');
+    }
 
     const data = await res.json();
 
     if (!res.ok) {
       showError(data.error || 'Something went wrong. Please try again.');
-      nextBtn.disabled = false;
-      nextBtn.textContent = 'Confirm Booking';
+      resetBtn();
       return;
     }
 
@@ -406,10 +420,12 @@ async function submitBooking() {
     successEl.style.display = 'block';
     document.getElementById('bookingFooter').style.display = 'none';
     document.querySelector('.booking-steps').style.display = 'none';
-  } catch {
-    showError('Network error. Please check your connection and try again.');
-    nextBtn.disabled = false;
-    nextBtn.textContent = 'Confirm Booking';
+  } catch (err) {
+    const msg = err.name === 'AbortError'
+      ? 'Request timed out. Please check your connection and try again.'
+      : (err.message || 'Network error. Please check your connection and try again.');
+    showError(msg);
+    resetBtn();
   }
 }
 
