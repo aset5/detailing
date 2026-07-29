@@ -49,6 +49,11 @@ async function fetchJson(url) {
   return data;
 }
 
+function prewarmServer() {
+  fetch('/api/health').catch(() => {});
+  fetch('/api/config').catch(() => {});
+}
+
 // ─── Address Autocomplete ─────────────────────────────────────
 
 function setupAddressAutocomplete() {
@@ -195,6 +200,7 @@ function getServices() {
 
 async function initBooking() {
   setupAddressAutocomplete();
+  prewarmServer();
   await ensureAppConfig();
   setDateInputMin();
 }
@@ -217,6 +223,7 @@ function openBookingModal(event, preselectedService) {
 
   document.getElementById('bookingOverlay').classList.add('active');
   document.body.style.overflow = 'hidden';
+  prewarmServer();
   goToStep(1);
 
   ensureAppConfig().then(() => {
@@ -374,9 +381,21 @@ async function submitBooking() {
     nextBtn.textContent = 'Confirm Booking';
   };
 
+  const slowTimer = setTimeout(() => {
+    nextBtn.textContent = 'Starting server...';
+  }, 3000);
+  const slowerTimer = setTimeout(() => {
+    nextBtn.textContent = 'Almost done...';
+  }, 12000);
+
+  const clearTimers = () => {
+    clearTimeout(slowTimer);
+    clearTimeout(slowerTimer);
+  };
+
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000);
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
 
     const res = await fetch('/api/bookings', {
       method: 'POST',
@@ -396,6 +415,7 @@ async function submitBooking() {
       signal: controller.signal
     });
     clearTimeout(timeoutId);
+    clearTimers();
 
     const contentType = res.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) {
@@ -423,8 +443,9 @@ async function submitBooking() {
     document.getElementById('bookingFooter').style.display = 'none';
     document.querySelector('.booking-steps').style.display = 'none';
   } catch (err) {
+    clearTimers();
     const msg = err.name === 'AbortError'
-      ? 'Request timed out. Please check your connection and try again.'
+      ? 'Request timed out. The server may be waking up — please try again.'
       : (err.message || 'Network error. Please check your connection and try again.');
     showError(msg);
     resetBtn();
