@@ -806,7 +806,18 @@ async function loadTimeSlots() {
       status: statusByTime[time] === 'booked' || statusByTime[time] === 'blocked' ? 'booked' : 'available'
     }));
   } catch {
-    // If API unavailable, show all slots as available (yellow)
+    try {
+      const data = await fetchJson(
+        `/api/availability/slots?date=${encodeURIComponent(bookingState.bookingDate)}&serviceId=${encodeURIComponent(bookingState.serviceId)}`
+      );
+      const available = new Set(data.slots || []);
+      slots = allowedTimes.map(time => ({
+        time,
+        status: available.has(time) ? 'available' : 'booked'
+      }));
+    } catch {
+      // keep all yellow only if both APIs fail
+    }
   }
 
   renderTimeSlotButtonsSimple(slots);
