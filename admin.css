@@ -191,6 +191,74 @@ body {
     margin-bottom: 2rem;
 }
 
+.stats-grid.compact {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+.admin-section {
+    display: none;
+}
+
+.admin-section.active {
+    display: block;
+}
+
+.period-cards {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.period-card {
+    background: var(--light-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.2rem 1.3rem;
+}
+
+.period-card h3 {
+    font-size: 1rem;
+    font-weight: 800;
+    margin-bottom: 0.9rem;
+}
+
+.period-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+}
+
+.period-metrics div {
+    background: var(--card-bg);
+    border-radius: 8px;
+    padding: 0.75rem 0.85rem;
+}
+
+.period-metrics span {
+    display: block;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-bottom: 0.2rem;
+}
+
+.period-metrics strong {
+    font-size: 1.1rem;
+}
+
+.section-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    gap: 1rem;
+}
+
+.section-heading h2 {
+    font-size: 1.2rem;
+    font-weight: 800;
+}
+
 .stat-card {
     background: var(--light-bg);
     border: 1px solid var(--border-color);
@@ -481,6 +549,7 @@ body {
     .sidebar-nav a { justify-content: center; padding: 0.75rem; }
     .main-content { margin-left: 60px; }
     .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .period-cards { grid-template-columns: 1fr; }
     .client-detail-header { grid-template-columns: 1fr; }
     .form-row { grid-template-columns: 1fr; }
 }

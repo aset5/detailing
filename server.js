@@ -459,9 +459,17 @@ app.get('/api/admin/check', (req, res) => {
 // ─── Admin Bookings CRUD ──────────────────────────────────────
 
 app.get('/api/admin/bookings', requireAuth, (req, res) => {
-  const { status, date, search } = req.query;
+  const { status, date, search, period } = req.query;
   let sql = 'SELECT * FROM bookings WHERE 1=1';
   const params = [];
+
+  if (period === 'week') {
+    sql += " AND booking_date >= date('now', '-7 days')";
+  } else if (period === 'month') {
+    sql += " AND booking_date >= date('now', '-30 days')";
+  } else if (period === 'today') {
+    sql += ' AND booking_date = date(\'now\')';
+  }
 
   if (status) { sql += ' AND status = ?'; params.push(status); }
   if (date) { sql += ' AND booking_date = ?'; params.push(date); }
@@ -709,13 +717,47 @@ app.get('/api/admin/stats', requireAuth, (req, res) => {
     AND strftime('%Y-%m', booking_date) = strftime('%Y-%m', 'now')
   `).get().revenue;
 
+  function getPeriodSummary(days) {
+    const row = db.prepare(`
+      SELECT
+        COUNT(*) as total,
+        COALESCE(SUM(CASE WHEN status != 'cancelled' THEN total_price ELSE 0 END), 0) as revenue,
+        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN status = 'confirmed' THEN 1 ELSE 0 END) as confirmed,
+        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+        SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled
+      FROM bookings
+      WHERE booking_date >= date('now', ?)
+    `).get(`-${days} days`);
+
+    return {
+      total: row.total || 0,
+      revenue: row.revenue || 0,
+      pending: row.pending || 0,
+      confirmed: row.confirmed || 0,
+      completed: row.completed || 0,
+      cancelled: row.cancelled || 0
+    };
+  }
+
+  const week = getPeriodSummary(7);
+  const month = getPeriodSummary(30);
+
   const upcoming = db.prepare(`
     SELECT * FROM bookings
     WHERE booking_date >= ? AND status != 'cancelled'
     ORDER BY booking_date, booking_time LIMIT 5
   `).all(today);
 
-  res.json({ todayBookings, pendingBookings, totalClients, monthRevenue, upcoming });
+  res.json({
+    todayBookings,
+    pendingBookings,
+    totalClients,
+    monthRevenue,
+    week,
+    month,
+    upcoming
+  });
 });
 
 // ─── Static Files ─────────────────────────────────────────────
