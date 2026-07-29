@@ -21,6 +21,15 @@ function getAllBlocked() {
   }
 }
 
+function getAllExtraSlots() {
+  try {
+    const { getDb } = require('../../lib/db');
+    return getDb().prepare('SELECT * FROM extra_slots ORDER BY slot_date, slot_time').all();
+  } catch {
+    return [];
+  }
+}
+
 exports.handler = async (event) => {
   const { date, serviceId } = event.queryStringParameters || {};
 
@@ -36,7 +45,7 @@ exports.handler = async (event) => {
   let slots = allowedTimes;
 
   try {
-    slots = getAvailableSlots(date, serviceId, getAllBookings(), getAllBlocked());
+    slots = getAvailableSlots(date, serviceId, getAllBookings(), getAllBlocked(), getAllExtraSlots());
   } catch (err) {
     console.error('[slots]', err.message);
   }

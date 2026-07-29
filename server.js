@@ -12,7 +12,9 @@ const {
   getMonthAvailability,
   isSlotAvailable,
   getServiceDuration,
-  calculatePrice
+  calculatePrice,
+  getAllTimeSlots,
+  isValidBookingTime
 } = require('./lib/availability');
 const { queueBookingNotifications, sendEmailConfirmation } = require('./lib/notifications');
 
@@ -74,6 +76,14 @@ function getAllBookings() {
 
 function getAllBlocked() {
   return getDb().prepare('SELECT * FROM blocked_slots ORDER BY block_date, block_time').all();
+}
+
+function getAllExtraSlots() {
+  return getDb().prepare('SELECT * FROM extra_slots ORDER BY slot_date, slot_time').all();
+}
+
+function getExtraSlotsForDate(date) {
+  return getDb().prepare('SELECT * FROM extra_slots WHERE slot_date = ? ORDER BY slot_time').all(date);
 }
 
 // ─── Public API ───────────────────────────────────────────────
@@ -147,7 +157,7 @@ app.get('/api/availability/month', (req, res) => {
   const month = parseInt(req.query.month, 10);
   if (!year || !month) return res.status(400).json({ error: 'year and month required' });
 
-  const days = getMonthAvailability(year, month, getAllBookings(), getAllBlocked());
+  const days = getMonthAvailability(year, month, getAllBookings(), getAllBlocked(), getAllExtraSlots());
   res.json({ year, month, days });
 });
 
@@ -155,7 +165,8 @@ app.get('/api/availability/day', (req, res) => {
   const { date } = req.query;
   if (!date) return res.status(400).json({ error: 'date required' });
 
-  const allowedTimes = services.allowedStartTimes || ['09:00', '13:00', '17:00'];
+  const extraSlots = getAllExtraSlots();
+  const allowedTimes = getAllTimeSlots(date, extraSlots);
   const bookings = getAllBookings().filter(
     b => b.booking_date === date && b.status !== 'cancelled'
   );
@@ -164,23 +175,29 @@ app.get('/api/availability/day', (req, res) => {
 
   const slots = allowedTimes.map(time => {
     if (fullDayBlock) {
-      return { time, status: 'blocked' };
+      return { time, status: 'blocked', isExtra: !services.allowedStartTimes.includes(time) };
     }
     const block = blocked.find(b => b.block_time === time);
     if (block) {
-      return { time, status: 'blocked' };
+      return { time, status: 'blocked', isExtra: !services.allowedStartTimes.includes(time) };
     }
     const booking = bookings.find(b => b.booking_time === time);
     if (booking) {
-      return { time, status: 'booked', service: booking.service_name };
+      return {
+        time,
+        status: 'booked',
+        service: booking.service_name,
+        isExtra: !services.allowedStartTimes.includes(time)
+      };
     }
-    return { time, status: 'available' };
+    return { time, status: 'available', isExtra: !services.allowedStartTimes.includes(time) };
   });
 
   res.json({
     date,
     slots,
-    bookingsCount: bookings.length
+    bookingsCount: bookings.length,
+    extraSlots: extraSlots.filter(e => e.slot_date === date)
   });
 });
 
@@ -188,7 +205,7 @@ app.get('/api/availability/slots', (req, res) => {
   const { date, serviceId } = req.query;
   if (!date || !serviceId) return res.status(400).json({ error: 'date and serviceId required' });
 
-  const slots = getAvailableSlots(date, serviceId, getAllBookings(), getAllBlocked());
+  const slots = getAvailableSlots(date, serviceId, getAllBookings(), getAllBlocked(), getAllExtraSlots());
   res.json({ date, serviceId, slots });
 });
 
@@ -214,8 +231,8 @@ app.post('/api/bookings', async (req, res) => {
     return res.status(400).json({ error: 'Cannot book past dates' });
   }
 
-  const allowedTimes = services.allowedStartTimes || ['09:00', '13:00', '17:00'];
-  if (!allowedTimes.includes(bookingTime)) {
+  const extraSlots = getAllExtraSlots();
+  if (!isValidBookingTime(bookingDate, bookingTime, extraSlots)) {
     return res.status(400).json({ error: 'Invalid booking time' });
   }
 
@@ -498,6 +515,11 @@ app.post('/api/admin/bookings', requireAuth, async (req, res) => {
   const pkg = services.packages.find(p => p.id === serviceId);
   if (!pkg) return res.status(400).json({ error: 'Invalid service' });
 
+  const extraSlots = getAllExtraSlots();
+  if (!isValidBookingTime(bookingDate, bookingTime, extraSlots)) {
+    return res.status(400).json({ error: 'Invalid booking time' });
+  }
+
   const duration = getServiceDuration(serviceId);
   const available = isSlotAvailable(
     bookingDate, bookingTime, duration, getAllBookings(), getAllBlocked()
@@ -569,6 +591,11 @@ app.put('/api/admin/bookings/:id', requireAuth, async (req, res) => {
   );
 
   if (updatedStatus !== 'cancelled') {
+    const extraSlots = getAllExtraSlots();
+    if (!isValidBookingTime(updatedBookingDate, updatedBookingTime, extraSlots)) {
+      return res.status(400).json({ error: 'Invalid booking time' });
+    }
+
     const available = isSlotAvailable(
       updatedBookingDate,
       updatedBookingTime,
@@ -692,6 +719,47 @@ app.post('/api/admin/blocked', requireAuth, (req, res) => {
 
 app.delete('/api/admin/blocked/:id', requireAuth, (req, res) => {
   getDb().prepare('DELETE FROM blocked_slots WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+
+// ─── Admin Extra Slots (per-day additional times) ─────────────
+
+app.get('/api/admin/extra-slots', requireAuth, (req, res) => {
+  const { date } = req.query;
+  if (date) {
+    return res.json(getExtraSlotsForDate(date));
+  }
+  res.json(getAllExtraSlots());
+});
+
+app.post('/api/admin/extra-slots', requireAuth, (req, res) => {
+  const { slotDate, slotTime } = req.body;
+  if (!slotDate || !slotTime) {
+    return res.status(400).json({ error: 'slotDate and slotTime required' });
+  }
+
+  const baseTimes = services.allowedStartTimes || [];
+  if (baseTimes.includes(slotTime)) {
+    return res.status(400).json({ error: 'This time is already in the standard schedule' });
+  }
+
+  const existing = getDb().prepare(
+    'SELECT id FROM extra_slots WHERE slot_date = ? AND slot_time = ?'
+  ).get(slotDate, slotTime);
+  if (existing) {
+    return res.status(409).json({ error: 'Extra slot already exists for this day' });
+  }
+
+  const result = getDb().prepare(`
+    INSERT INTO extra_slots (slot_date, slot_time) VALUES (?, ?)
+  `).run(slotDate, slotTime);
+
+  const slot = getDb().prepare('SELECT * FROM extra_slots WHERE id = ?').get(result.lastInsertRowid);
+  res.status(201).json(slot);
+});
+
+app.delete('/api/admin/extra-slots/:id', requireAuth, (req, res) => {
+  getDb().prepare('DELETE FROM extra_slots WHERE id = ?').run(req.params.id);
   res.json({ success: true });
 });
 

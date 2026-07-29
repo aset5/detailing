@@ -30,26 +30,29 @@ function renderTimeSlotButtonsSimple(slots) {
   const container = document.getElementById('timeSlots');
   if (!container) return;
 
-  const allowedTimes = getServices().allowedStartTimes || ['09:00', '13:00', '17:00'];
-  const statusByTime = Object.fromEntries(slots.map(slot => [slot.time, slot.status]));
+  if (!slots.length) {
+    container.innerHTML = '<p class="no-slots-msg">No available times for this date.</p>';
+    return;
+  }
 
-  container.innerHTML = allowedTimes.map(time => {
-    const status = statusByTime[time] || 'available';
+  container.innerHTML = slots.map(slot => {
+    const { time, status, isExtra } = slot;
     const isBooked = status === 'booked' || status === 'blocked';
     const isSelected = bookingState.bookingTime === time && !isBooked;
     const label = formatTimeDisplay(time);
+    const extraTag = isExtra ? ' · Extra' : '';
 
     if (isBooked) {
-      return `<div class="time-slot booked" data-time="${time}" title="Already booked">${label} · Booked</div>`;
+      return `<div class="time-slot booked" data-time="${time}" title="Already booked">${label}${extraTag} · Booked</div>`;
     }
 
     return `<div class="time-slot available${isSelected ? ' selected' : ''}" data-time="${time}"
-      onclick="selectTimeSlot('${time}')" title="Available">${label}</div>`;
+      onclick="selectTimeSlot('${time}')" title="Available">${label}${extraTag}</div>`;
   }).join('');
 
   if (bookingState.bookingTime) {
-    const current = statusByTime[bookingState.bookingTime];
-    if (current === 'booked' || current === 'blocked') {
+    const current = slots.find(s => s.time === bookingState.bookingTime);
+    if (!current || current.status === 'booked' || current.status === 'blocked') {
       bookingState.bookingTime = '';
       showError('This time is already booked. Please choose a yellow slot.');
     }
@@ -793,17 +796,16 @@ async function loadTimeSlots() {
   container.innerHTML = '<p class="no-slots-msg">Loading available times...</p>';
   hideError();
 
-  const allowedTimes = getServices().allowedStartTimes || ['09:00', '13:00', '17:00'];
-  let slots = allowedTimes.map(time => ({ time, status: 'available' }));
+  let slots = [];
 
   try {
     const data = await fetchJson(
       `/api/availability/day?date=${encodeURIComponent(bookingState.bookingDate)}`
     );
-    const statusByTime = Object.fromEntries(data.slots.map(slot => [slot.time, slot.status]));
-    slots = allowedTimes.map(time => ({
-      time,
-      status: statusByTime[time] === 'booked' || statusByTime[time] === 'blocked' ? 'booked' : 'available'
+    slots = (data.slots || []).map(slot => ({
+      time: slot.time,
+      status: slot.status === 'booked' || slot.status === 'blocked' ? 'booked' : 'available',
+      isExtra: slot.isExtra
     }));
   } catch {
     try {
@@ -811,12 +813,14 @@ async function loadTimeSlots() {
         `/api/availability/slots?date=${encodeURIComponent(bookingState.bookingDate)}&serviceId=${encodeURIComponent(bookingState.serviceId)}`
       );
       const available = new Set(data.slots || []);
+      const allowedTimes = getServices().allowedStartTimes || ['09:00', '13:00', '17:00'];
       slots = allowedTimes.map(time => ({
         time,
         status: available.has(time) ? 'available' : 'booked'
       }));
     } catch {
-      // keep all yellow only if both APIs fail
+      const allowedTimes = getServices().allowedStartTimes || ['09:00', '13:00', '17:00'];
+      slots = allowedTimes.map(time => ({ time, status: 'available' }));
     }
   }
 
