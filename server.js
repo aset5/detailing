@@ -5,7 +5,21 @@ const cors = require('cors');
 const session = require('express-session');
 const path = require('path');
 const crypto = require('crypto');
-const { getDb, findOrCreateClient, updateClientStats } = require('./lib/db');
+const {
+  initDb,
+  isPostgres,
+  queryAll,
+  queryOne,
+  execute,
+  findOrCreateClient,
+  updateClientStats,
+  getAllBookings,
+  getAllBlocked,
+  getAllExtraSlots,
+  getExtraSlotsForDate,
+  getBookingById,
+  insertBooking
+} = require('./lib/db');
 const {
   services,
   getAvailableSlots,
@@ -70,20 +84,17 @@ function requireAuth(req, res, next) {
   res.status(401).json({ error: 'Unauthorized' });
 }
 
-function getAllBookings() {
-  return getDb().prepare('SELECT * FROM bookings ORDER BY booking_date DESC, booking_time DESC').all();
-}
-
-function getAllBlocked() {
-  return getDb().prepare('SELECT * FROM blocked_slots ORDER BY block_date, block_time').all();
-}
-
-function getAllExtraSlots() {
-  return getDb().prepare('SELECT * FROM extra_slots ORDER BY slot_date, slot_time').all();
-}
-
-function getExtraSlotsForDate(date) {
-  return getDb().prepare('SELECT * FROM extra_slots WHERE slot_date = ? ORDER BY slot_time').all(date);
+function periodStartClause(days) {
+  if (isPostgres()) {
+    return {
+      sql: `booking_date >= (CURRENT_DATE - INTERVAL '${days} days')::text`,
+      params: []
+    };
+  }
+  return {
+    sql: 'booking_date >= date(\'now\', ?)',
+    params: [`-${days} days`]
+  };
 }
 
 // ─── Public API ───────────────────────────────────────────────
@@ -152,25 +163,30 @@ function formatPhotonAddress(feature) {
   return address ? { address } : null;
 }
 
-app.get('/api/availability/month', (req, res) => {
+app.get('/api/availability/month', async (req, res) => {
   const year = parseInt(req.query.year, 10);
   const month = parseInt(req.query.month, 10);
   if (!year || !month) return res.status(400).json({ error: 'year and month required' });
 
-  const days = getMonthAvailability(year, month, getAllBookings(), getAllBlocked(), getAllExtraSlots());
+  const [bookings, blocked, extraSlots] = await Promise.all([
+    getAllBookings(), getAllBlocked(), getAllExtraSlots()
+  ]);
+  const days = getMonthAvailability(year, month, bookings, blocked, extraSlots);
   res.json({ year, month, days });
 });
 
-app.get('/api/availability/day', (req, res) => {
+app.get('/api/availability/day', async (req, res) => {
   const { date } = req.query;
   if (!date) return res.status(400).json({ error: 'date required' });
 
-  const extraSlots = getAllExtraSlots();
+  const [extraSlots, allBookings, allBlocked] = await Promise.all([
+    getAllExtraSlots(), getAllBookings(), getAllBlocked()
+  ]);
   const allowedTimes = getAllTimeSlots(date, extraSlots);
-  const bookings = getAllBookings().filter(
+  const bookings = allBookings.filter(
     b => b.booking_date === date && b.status !== 'cancelled'
   );
-  const blocked = getAllBlocked().filter(b => b.block_date === date);
+  const blocked = allBlocked.filter(b => b.block_date === date);
   const fullDayBlock = blocked.some(b => b.is_full_day);
 
   const slots = allowedTimes.map(time => {
@@ -201,11 +217,14 @@ app.get('/api/availability/day', (req, res) => {
   });
 });
 
-app.get('/api/availability/slots', (req, res) => {
+app.get('/api/availability/slots', async (req, res) => {
   const { date, serviceId } = req.query;
   if (!date || !serviceId) return res.status(400).json({ error: 'date and serviceId required' });
 
-  const slots = getAvailableSlots(date, serviceId, getAllBookings(), getAllBlocked(), getAllExtraSlots());
+  const [bookings, blocked, extraSlots] = await Promise.all([
+    getAllBookings(), getAllBlocked(), getAllExtraSlots()
+  ]);
+  const slots = getAvailableSlots(date, serviceId, bookings, blocked, extraSlots);
   res.json({ date, serviceId, slots });
 });
 
@@ -231,7 +250,7 @@ app.post('/api/bookings', async (req, res) => {
     return res.status(400).json({ error: 'Cannot book past dates' });
   }
 
-  const extraSlots = getAllExtraSlots();
+  const extraSlots = await getAllExtraSlots();
   if (!isValidBookingTime(bookingDate, bookingTime, extraSlots)) {
     return res.status(400).json({ error: 'Invalid booking time' });
   }
@@ -240,8 +259,9 @@ app.post('/api/bookings', async (req, res) => {
   if (!pkg) return res.status(400).json({ error: 'Invalid service' });
 
   const duration = getServiceDuration(serviceId);
+  const [allBookings, allBlocked] = await Promise.all([getAllBookings(), getAllBlocked()]);
   const available = isSlotAvailable(
-    bookingDate, bookingTime, duration, getAllBookings(), getAllBlocked()
+    bookingDate, bookingTime, duration, allBookings, allBlocked
   );
   if (!available) {
     return res.status(409).json({ error: 'This time slot is no longer available' });
@@ -249,32 +269,23 @@ app.post('/api/bookings', async (req, res) => {
 
   const addonList = Array.isArray(addons) ? addons : [];
   const totalPrice = calculatePrice(serviceId, vehicleType, addonList);
-  const clientId = findOrCreateClient({ name, phone, email, address });
+  const clientId = await findOrCreateClient({ name, phone, email, address });
 
-  const db = getDb();
-  const result = db.prepare(`
-    INSERT INTO bookings (
-      client_id, name, phone, email, address, vehicle_type,
-      service_id, service_name, addons, comment,
-      booking_date, booking_time, duration_minutes, total_price, status
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
-  `).run(
+  const booking = await insertBooking([
     clientId, name, phone || null, email || null, address, vehicleType,
     serviceId, pkg.name, JSON.stringify(addonList), comment || null,
-    bookingDate, bookingTime, duration, totalPrice
-  );
+    bookingDate, bookingTime, duration, totalPrice, 'pending'
+  ]);
 
-  updateClientStats(clientId);
-
-  const booking = db.prepare('SELECT * FROM bookings WHERE id = ?').get(result.lastInsertRowid);
+  await updateClientStats(clientId);
 
   queueBookingNotifications(booking);
 
   res.status(201).json({ booking, notifications: { queued: true } });
 });
 
-app.get('/booking/cancel-form/:id', (req, res) => {
-  const booking = getDb().prepare('SELECT * FROM bookings WHERE id = ?').get(req.params.id);
+app.get('/booking/cancel-form/:id', async (req, res) => {
+  const booking = await getBookingById(req.params.id);
   const token = req.query.token;
   if (!booking || !verifyBookingLinkToken(booking, token)) {
     return res.status(403).send('<h1>Invalid or expired cancellation link</h1>');
@@ -315,8 +326,8 @@ app.get('/booking/cancel-form/:id', (req, res) => {
 });
 
 // perform cancellation via POST (used by cancel form)
-app.post('/booking/cancel/:id', (req, res) => {
-  const booking = getDb().prepare('SELECT * FROM bookings WHERE id = ?').get(req.params.id);
+app.post('/booking/cancel/:id', async (req, res) => {
+  const booking = await getBookingById(req.params.id);
   const token = req.query.token;
   if (!booking || !verifyBookingLinkToken(booking, token)) {
     return res.status(403).send('<h1>Invalid or expired cancellation link</h1>');
@@ -326,13 +337,16 @@ app.post('/booking/cancel/:id', (req, res) => {
     return res.send('<h1>Booking already cancelled</h1>');
   }
 
-  getDb().prepare('UPDATE bookings SET status = ?, updated_at = datetime(\'now\') WHERE id = ?').run('cancelled', booking.id);
-  if (booking.client_id) updateClientStats(booking.client_id);
+  await execute(
+    `UPDATE bookings SET status = ?, updated_at = ${isPostgres() ? 'NOW()' : "datetime('now')"} WHERE id = ?`,
+    ['cancelled', booking.id]
+  );
+  if (booking.client_id) await updateClientStats(booking.client_id);
   res.send('<h1>Your booking has been cancelled.</h1><p>Thank you, we have updated your appointment.</p>');
 });
 
-app.get('/booking/reschedule-form/:id', (req, res) => {
-  const booking = getDb().prepare('SELECT * FROM bookings WHERE id = ?').get(req.params.id);
+app.get('/booking/reschedule-form/:id', async (req, res) => {
+  const booking = await getBookingById(req.params.id);
   const token = req.query.token;
   if (!booking || !verifyBookingLinkToken(booking, token)) {
     return res.status(403).send('<h1>Invalid or expired reschedule link</h1>');
@@ -390,7 +404,7 @@ app.get('/booking/reschedule-form/:id', (req, res) => {
 
 // perform reschedule via POST (used by reschedule form)
 app.post('/booking/reschedule/:id', async (req, res) => {
-  const booking = getDb().prepare('SELECT * FROM bookings WHERE id = ?').get(req.params.id);
+  const booking = await getBookingById(req.params.id);
   const token = req.query.token;
   let { bookingDate, bookingTime } = req.body;
 
@@ -408,25 +422,27 @@ app.post('/booking/reschedule/:id', async (req, res) => {
 
   bookingTime = bookingTime.slice(0, 5);
 
-  const allowedTimes = services.allowedStartTimes || ['09:00', '13:00', '17:00'];
-  if (!allowedTimes.includes(bookingTime)) {
+  const extraSlots = await getAllExtraSlots();
+  if (!isValidBookingTime(bookingDate, bookingTime, extraSlots)) {
     return res.send('<h1>Invalid booking time. Please go back and choose an available slot.</h1>');
   }
 
   const duration = getServiceDuration(booking.service_id);
-  const otherBookings = getAllBookings().filter(b => b.id !== booking.id);
-  const available = isSlotAvailable(bookingDate, bookingTime, duration, otherBookings, getAllBlocked());
+  const allBookings = await getAllBookings();
+  const otherBookings = allBookings.filter(b => b.id !== booking.id);
+  const allBlocked = await getAllBlocked();
+  const available = isSlotAvailable(bookingDate, bookingTime, duration, otherBookings, allBlocked);
   if (!available) {
     return res.send('<h1>Requested time slot is not available. Please go back and choose another time.</h1>');
   }
 
-  getDb().prepare(`
-    UPDATE bookings SET booking_date = ?, booking_time = ?, updated_at = datetime('now')
+  await execute(`
+    UPDATE bookings SET booking_date = ?, booking_time = ?, updated_at = ${isPostgres() ? 'NOW()' : "datetime('now')"}
     WHERE id = ?
-  `).run(bookingDate, bookingTime, booking.id);
+  `, [bookingDate, bookingTime, booking.id]);
 
-  const updatedBooking = getDb().prepare('SELECT * FROM bookings WHERE id = ?').get(booking.id);
-  if (updatedBooking.client_id) updateClientStats(updatedBooking.client_id);
+  const updatedBooking = await getBookingById(booking.id);
+  if (updatedBooking.client_id) await updateClientStats(updatedBooking.client_id);
 
   let emailSent = false;
   if (updatedBooking.email) {
@@ -475,17 +491,25 @@ app.get('/api/admin/check', (req, res) => {
 
 // ─── Admin Bookings CRUD ──────────────────────────────────────
 
-app.get('/api/admin/bookings', requireAuth, (req, res) => {
+app.get('/api/admin/bookings', requireAuth, async (req, res) => {
   const { status, date, search, period } = req.query;
   let sql = 'SELECT * FROM bookings WHERE 1=1';
   const params = [];
 
   if (period === 'week') {
-    sql += " AND booking_date >= date('now', '-7 days')";
+    const clause = periodStartClause(7);
+    sql += ` AND ${clause.sql}`;
+    params.push(...clause.params);
   } else if (period === 'month') {
-    sql += " AND booking_date >= date('now', '-30 days')";
+    const clause = periodStartClause(30);
+    sql += ` AND ${clause.sql}`;
+    params.push(...clause.params);
   } else if (period === 'today') {
-    sql += ' AND booking_date = date(\'now\')';
+    if (isPostgres()) {
+      sql += ' AND booking_date = CURRENT_DATE::text';
+    } else {
+      sql += ' AND booking_date = date(\'now\')';
+    }
   }
 
   if (status) { sql += ' AND status = ?'; params.push(status); }
@@ -497,11 +521,11 @@ app.get('/api/admin/bookings', requireAuth, (req, res) => {
   }
 
   sql += ' ORDER BY booking_date DESC, booking_time DESC';
-  res.json(getDb().prepare(sql).all(...params));
+  res.json(await queryAll(sql, params));
 });
 
-app.get('/api/admin/bookings/:id', requireAuth, (req, res) => {
-  const booking = getDb().prepare('SELECT * FROM bookings WHERE id = ?').get(req.params.id);
+app.get('/api/admin/bookings/:id', requireAuth, async (req, res) => {
+  const booking = await getBookingById(req.params.id);
   if (!booking) return res.status(404).json({ error: 'Not found' });
   res.json(booking);
 });
@@ -515,14 +539,15 @@ app.post('/api/admin/bookings', requireAuth, async (req, res) => {
   const pkg = services.packages.find(p => p.id === serviceId);
   if (!pkg) return res.status(400).json({ error: 'Invalid service' });
 
-  const extraSlots = getAllExtraSlots();
+  const extraSlots = await getAllExtraSlots();
   if (!isValidBookingTime(bookingDate, bookingTime, extraSlots)) {
     return res.status(400).json({ error: 'Invalid booking time' });
   }
 
   const duration = getServiceDuration(serviceId);
+  const [allBookings, allBlocked] = await Promise.all([getAllBookings(), getAllBlocked()]);
   const available = isSlotAvailable(
-    bookingDate, bookingTime, duration, getAllBookings(), getAllBlocked()
+    bookingDate, bookingTime, duration, allBookings, allBlocked
   );
   if (!available) {
     return res.status(409).json({ error: 'Time slot not available' });
@@ -530,30 +555,22 @@ app.post('/api/admin/bookings', requireAuth, async (req, res) => {
 
   const addonList = Array.isArray(addons) ? addons : [];
   const totalPrice = calculatePrice(serviceId, vehicleType, addonList);
-  const clientId = findOrCreateClient({ name, phone, email, address });
+  const clientId = await findOrCreateClient({ name, phone, email, address });
 
-  const db = getDb();
-  const result = db.prepare(`
-    INSERT INTO bookings (
-      client_id, name, phone, email, address, vehicle_type,
-      service_id, service_name, addons, comment,
-      booking_date, booking_time, duration_minutes, total_price, status
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
+  const booking = await insertBooking([
     clientId, name, phone || null, email || null, address, vehicleType,
     serviceId, pkg.name, JSON.stringify(addonList), comment || null,
     bookingDate, bookingTime, duration, totalPrice, status || 'confirmed'
-  );
+  ]);
 
-  updateClientStats(clientId);
-  const booking = db.prepare('SELECT * FROM bookings WHERE id = ?').get(result.lastInsertRowid);
+  await updateClientStats(clientId);
   queueBookingNotifications(booking);
 
   res.status(201).json({ booking, notifications: { queued: true } });
 });
 
 app.put('/api/admin/bookings/:id', requireAuth, async (req, res) => {
-  const existing = getDb().prepare('SELECT * FROM bookings WHERE id = ?').get(req.params.id);
+  const existing = await getBookingById(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Not found' });
 
   const {
@@ -586,12 +603,12 @@ app.put('/api/admin/bookings/:id', requireAuth, async (req, res) => {
 
   const duration = getServiceDuration(updatedServiceId);
 
-  const otherBookings = getAllBookings().filter(b =>
+  const otherBookings = (await getAllBookings()).filter(b =>
     b.id !== parseInt(req.params.id, 10)
   );
 
   if (updatedStatus !== 'cancelled') {
-    const extraSlots = getAllExtraSlots();
+    const extraSlots = await getAllExtraSlots();
     if (!isValidBookingTime(updatedBookingDate, updatedBookingTime, extraSlots)) {
       return res.status(400).json({ error: 'Invalid booking time' });
     }
@@ -601,7 +618,7 @@ app.put('/api/admin/bookings/:id', requireAuth, async (req, res) => {
       updatedBookingTime,
       duration,
       otherBookings,
-      getAllBlocked()
+      await getAllBlocked()
     );
     if (!available) {
       return res.status(409).json({ error: 'Time slot not available' });
@@ -613,14 +630,14 @@ app.put('/api/admin/bookings/:id', requireAuth, async (req, res) => {
     : (existing.addons ? JSON.parse(existing.addons) : []);
   const totalPrice = calculatePrice(updatedServiceId, updatedVehicleType, addonList);
 
-  getDb().prepare(`
+  await execute(`
     UPDATE bookings SET
       name = ?, phone = ?, email = ?, address = ?, vehicle_type = ?,
       service_id = ?, service_name = ?, addons = ?, comment = ?,
       booking_date = ?, booking_time = ?, duration_minutes = ?,
-      total_price = ?, status = ?, updated_at = datetime('now')
+      total_price = ?, status = ?, updated_at = ${isPostgres() ? 'NOW()' : "datetime('now')"}
     WHERE id = ?
-  `).run(
+  `, [
     updatedName,
     updatedPhone || null,
     updatedEmail || null,
@@ -636,11 +653,11 @@ app.put('/api/admin/bookings/:id', requireAuth, async (req, res) => {
     totalPrice,
     updatedStatus,
     req.params.id
-  );
+  ]);
 
-  if (existing.client_id) updateClientStats(existing.client_id);
+  if (existing.client_id) await updateClientStats(existing.client_id);
 
-  const booking = getDb().prepare('SELECT * FROM bookings WHERE id = ?').get(req.params.id);
+  const booking = await getBookingById(req.params.id);
 
   // If booking was changed to confirmed, send notifications
   if (existing.status !== 'confirmed' && updatedStatus === 'confirmed') {
@@ -650,18 +667,18 @@ app.put('/api/admin/bookings/:id', requireAuth, async (req, res) => {
   res.json({ booking, notifications: { queued: true } });
 });
 
-app.delete('/api/admin/bookings/:id', requireAuth, (req, res) => {
-  const booking = getDb().prepare('SELECT * FROM bookings WHERE id = ?').get(req.params.id);
+app.delete('/api/admin/bookings/:id', requireAuth, async (req, res) => {
+  const booking = await getBookingById(req.params.id);
   if (!booking) return res.status(404).json({ error: 'Not found' });
 
-  getDb().prepare('DELETE FROM bookings WHERE id = ?').run(req.params.id);
-  if (booking.client_id) updateClientStats(booking.client_id);
+  await execute('DELETE FROM bookings WHERE id = ?', [req.params.id]);
+  if (booking.client_id) await updateClientStats(booking.client_id);
   res.json({ success: true });
 });
 
 // ─── Admin Clients (CRM) ─────────────────────────────────────
 
-app.get('/api/admin/clients', requireAuth, (req, res) => {
+app.get('/api/admin/clients', requireAuth, async (req, res) => {
   const { search } = req.query;
   let sql = 'SELECT * FROM clients';
   const params = [];
@@ -673,66 +690,72 @@ app.get('/api/admin/clients', requireAuth, (req, res) => {
   }
 
   sql += ' ORDER BY last_booking_at DESC';
-  res.json(getDb().prepare(sql).all(...params));
+  res.json(await queryAll(sql, params));
 });
 
-app.get('/api/admin/clients/:id', requireAuth, (req, res) => {
-  const client = getDb().prepare('SELECT * FROM clients WHERE id = ?').get(req.params.id);
+app.get('/api/admin/clients/:id', requireAuth, async (req, res) => {
+  const client = await queryOne('SELECT * FROM clients WHERE id = ?', [req.params.id]);
   if (!client) return res.status(404).json({ error: 'Not found' });
 
-  const bookings = getDb().prepare(
-    'SELECT * FROM bookings WHERE client_id = ? ORDER BY booking_date DESC'
-  ).all(req.params.id);
+  const bookings = await queryAll(
+    'SELECT * FROM bookings WHERE client_id = ? ORDER BY booking_date DESC',
+    [req.params.id]
+  );
 
   res.json({ client, bookings });
 });
 
-app.put('/api/admin/clients/:id', requireAuth, (req, res) => {
+app.put('/api/admin/clients/:id', requireAuth, async (req, res) => {
   const { notes, name, phone, email, address } = req.body;
-  getDb().prepare(`
+  await execute(`
     UPDATE clients SET name = ?, phone = ?, email = ?, address = ?, notes = ?
     WHERE id = ?
-  `).run(name, phone, email, address, notes || null, req.params.id);
+  `, [name, phone, email, address, notes || null, req.params.id]);
 
-  const client = getDb().prepare('SELECT * FROM clients WHERE id = ?').get(req.params.id);
+  const client = await queryOne('SELECT * FROM clients WHERE id = ?', [req.params.id]);
   res.json(client);
 });
 
 // ─── Admin Blocked Slots ──────────────────────────────────────
 
-app.get('/api/admin/blocked', requireAuth, (req, res) => {
-  res.json(getAllBlocked());
+app.get('/api/admin/blocked', requireAuth, async (req, res) => {
+  res.json(await getAllBlocked());
 });
 
-app.post('/api/admin/blocked', requireAuth, (req, res) => {
+app.post('/api/admin/blocked', requireAuth, async (req, res) => {
   const { blockDate, blockTime, isFullDay, reason } = req.body;
   if (!blockDate) return res.status(400).json({ error: 'blockDate required' });
 
-  const result = getDb().prepare(`
-    INSERT INTO blocked_slots (block_date, block_time, is_full_day, reason)
-    VALUES (?, ?, ?, ?)
-  `).run(blockDate, blockTime || null, isFullDay ? 1 : 0, reason || null);
+  const insertSql = isPostgres()
+    ? `INSERT INTO blocked_slots (block_date, block_time, is_full_day, reason)
+       VALUES (?, ?, ?, ?) RETURNING id`
+    : `INSERT INTO blocked_slots (block_date, block_time, is_full_day, reason)
+       VALUES (?, ?, ?, ?)`;
 
-  const block = getDb().prepare('SELECT * FROM blocked_slots WHERE id = ?').get(result.lastInsertRowid);
+  const result = await execute(insertSql, [
+    blockDate, blockTime || null, isFullDay ? 1 : 0, reason || null
+  ]);
+
+  const block = await queryOne('SELECT * FROM blocked_slots WHERE id = ?', [result.lastInsertRowid]);
   res.status(201).json(block);
 });
 
-app.delete('/api/admin/blocked/:id', requireAuth, (req, res) => {
-  getDb().prepare('DELETE FROM blocked_slots WHERE id = ?').run(req.params.id);
+app.delete('/api/admin/blocked/:id', requireAuth, async (req, res) => {
+  await execute('DELETE FROM blocked_slots WHERE id = ?', [req.params.id]);
   res.json({ success: true });
 });
 
 // ─── Admin Extra Slots (per-day additional times) ─────────────
 
-app.get('/api/admin/extra-slots', requireAuth, (req, res) => {
+app.get('/api/admin/extra-slots', requireAuth, async (req, res) => {
   const { date } = req.query;
   if (date) {
-    return res.json(getExtraSlotsForDate(date));
+    return res.json(await getExtraSlotsForDate(date));
   }
-  res.json(getAllExtraSlots());
+  res.json(await getAllExtraSlots());
 });
 
-app.post('/api/admin/extra-slots', requireAuth, (req, res) => {
+app.post('/api/admin/extra-slots', requireAuth, async (req, res) => {
   const { slotDate, slotTime } = req.body;
   if (!slotDate || !slotTime) {
     return res.status(400).json({ error: 'slotDate and slotTime required' });
@@ -743,50 +766,53 @@ app.post('/api/admin/extra-slots', requireAuth, (req, res) => {
     return res.status(400).json({ error: 'This time is already in the standard schedule' });
   }
 
-  const existing = getDb().prepare(
-    'SELECT id FROM extra_slots WHERE slot_date = ? AND slot_time = ?'
-  ).get(slotDate, slotTime);
+  const existing = await queryOne(
+    'SELECT id FROM extra_slots WHERE slot_date = ? AND slot_time = ?',
+    [slotDate, slotTime]
+  );
   if (existing) {
     return res.status(409).json({ error: 'Extra slot already exists for this day' });
   }
 
-  const result = getDb().prepare(`
-    INSERT INTO extra_slots (slot_date, slot_time) VALUES (?, ?)
-  `).run(slotDate, slotTime);
+  const insertSql = isPostgres()
+    ? 'INSERT INTO extra_slots (slot_date, slot_time) VALUES (?, ?) RETURNING id'
+    : 'INSERT INTO extra_slots (slot_date, slot_time) VALUES (?, ?)';
 
-  const slot = getDb().prepare('SELECT * FROM extra_slots WHERE id = ?').get(result.lastInsertRowid);
+  const result = await execute(insertSql, [slotDate, slotTime]);
+  const slot = await queryOne('SELECT * FROM extra_slots WHERE id = ?', [result.lastInsertRowid]);
   res.status(201).json(slot);
 });
 
-app.delete('/api/admin/extra-slots/:id', requireAuth, (req, res) => {
-  getDb().prepare('DELETE FROM extra_slots WHERE id = ?').run(req.params.id);
+app.delete('/api/admin/extra-slots/:id', requireAuth, async (req, res) => {
+  await execute('DELETE FROM extra_slots WHERE id = ?', [req.params.id]);
   res.json({ success: true });
 });
 
 // ─── Admin Dashboard Stats ────────────────────────────────────
 
-app.get('/api/admin/stats', requireAuth, (req, res) => {
-  const db = getDb();
+app.get('/api/admin/stats', requireAuth, async (req, res) => {
   const today = new Date().toISOString().split('T')[0];
 
-  const todayBookings = db.prepare(
-    "SELECT COUNT(*) as count FROM bookings WHERE booking_date = ? AND status != 'cancelled'"
-  ).get(today).count;
-
-  const pendingBookings = db.prepare(
+  const todayRow = await queryOne(
+    "SELECT COUNT(*) as count FROM bookings WHERE booking_date = ? AND status != 'cancelled'",
+    [today]
+  );
+  const pendingRow = await queryOne(
     "SELECT COUNT(*) as count FROM bookings WHERE status = 'pending'"
-  ).get().count;
+  );
+  const clientsRow = await queryOne('SELECT COUNT(*) as count FROM clients');
+  const revenueSql = isPostgres()
+    ? `SELECT COALESCE(SUM(total_price), 0) as revenue FROM bookings
+       WHERE status != 'cancelled'
+       AND to_char(booking_date::date, 'YYYY-MM') = to_char(CURRENT_DATE, 'YYYY-MM')`
+    : `SELECT COALESCE(SUM(total_price), 0) as revenue FROM bookings
+       WHERE status != 'cancelled'
+       AND strftime('%Y-%m', booking_date) = strftime('%Y-%m', 'now')`;
+  const revenueRow = await queryOne(revenueSql);
 
-  const totalClients = db.prepare('SELECT COUNT(*) as count FROM clients').get().count;
-
-  const monthRevenue = db.prepare(`
-    SELECT COALESCE(SUM(total_price), 0) as revenue FROM bookings
-    WHERE status != 'cancelled'
-    AND strftime('%Y-%m', booking_date) = strftime('%Y-%m', 'now')
-  `).get().revenue;
-
-  function getPeriodSummary(days) {
-    const row = db.prepare(`
+  async function getPeriodSummary(days) {
+    const clause = periodStartClause(days);
+    const row = await queryOne(`
       SELECT
         COUNT(*) as total,
         COALESCE(SUM(CASE WHEN status != 'cancelled' THEN total_price ELSE 0 END), 0) as revenue,
@@ -795,33 +821,33 @@ app.get('/api/admin/stats', requireAuth, (req, res) => {
         SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
         SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled
       FROM bookings
-      WHERE booking_date >= date('now', ?)
-    `).get(`-${days} days`);
+      WHERE ${clause.sql}
+    `, clause.params);
 
     return {
-      total: row.total || 0,
-      revenue: row.revenue || 0,
-      pending: row.pending || 0,
-      confirmed: row.confirmed || 0,
-      completed: row.completed || 0,
-      cancelled: row.cancelled || 0
+      total: Number(row?.total || 0),
+      revenue: Number(row?.revenue || 0),
+      pending: Number(row?.pending || 0),
+      confirmed: Number(row?.confirmed || 0),
+      completed: Number(row?.completed || 0),
+      cancelled: Number(row?.cancelled || 0)
     };
   }
 
-  const week = getPeriodSummary(7);
-  const month = getPeriodSummary(30);
+  const week = await getPeriodSummary(7);
+  const month = await getPeriodSummary(30);
 
-  const upcoming = db.prepare(`
+  const upcoming = await queryAll(`
     SELECT * FROM bookings
     WHERE booking_date >= ? AND status != 'cancelled'
     ORDER BY booking_date, booking_time LIMIT 5
-  `).all(today);
+  `, [today]);
 
   res.json({
-    todayBookings,
-    pendingBookings,
-    totalClients,
-    monthRevenue,
+    todayBookings: Number(todayRow?.count || 0),
+    pendingBookings: Number(pendingRow?.count || 0),
+    totalClients: Number(clientsRow?.count || 0),
+    monthRevenue: Number(revenueRow?.revenue || 0),
     week,
     month,
     upcoming
@@ -837,11 +863,18 @@ app.get('/admin', (req, res) => {
 });
 
 if (require.main === module) {
-  app.listen(PORT, '0.0.0.0', () => {
-    getDb();
-    console.log(`Glow on the Go server running at ${BASE_URL}`);
-    console.log(`Admin panel: ${BASE_URL}/admin`);
-  });
+  initDb()
+    .then(() => {
+      app.listen(PORT, '0.0.0.0', () => {
+        console.log(`Glow on the Go server running at ${BASE_URL}`);
+        console.log(`Admin panel: ${BASE_URL}/admin`);
+        console.log(`Database: ${isPostgres() ? 'PostgreSQL' : 'SQLite'}`);
+      });
+    })
+    .catch((err) => {
+      console.error('Failed to start server:', err);
+      process.exit(1);
+    });
 }
 
 module.exports = app;

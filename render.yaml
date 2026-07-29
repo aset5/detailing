@@ -1,10 +1,20 @@
-services:
-  - type: web
-    name: detailing
-    runtime: node
-    buildCommand: npm install
-    startCommand: npm start
-    healthCheckPath: /api/health
-    envVars:
-      - key: NODE_ENV
-        value: production
+services:
+  - type: web
+    name: detailing
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: detailing-db
+          property: connectionString
+
+databases:
+  - name: detailing-db
+    plan: free
+    databaseName: detailing
+    user: detailing

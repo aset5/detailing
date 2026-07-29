@@ -3,31 +3,10 @@ require('dotenv').config();
 const services = require('../../data/services.json');
 const { getAvailableSlots } = require('../../lib/availability');
 
-function getAllBookings() {
-  try {
-    const { getDb } = require('../../lib/db');
-    return getDb().prepare('SELECT * FROM bookings ORDER BY booking_date DESC, booking_time DESC').all();
-  } catch {
-    return [];
-  }
-}
-
-function getAllBlocked() {
-  try {
-    const { getDb } = require('../../lib/db');
-    return getDb().prepare('SELECT * FROM blocked_slots ORDER BY block_date, block_time').all();
-  } catch {
-    return [];
-  }
-}
-
-function getAllExtraSlots() {
-  try {
-    const { getDb } = require('../../lib/db');
-    return getDb().prepare('SELECT * FROM extra_slots ORDER BY slot_date, slot_time').all();
-  } catch {
-    return [];
-  }
+async function getDbHelpers() {
+  const db = require('../../lib/db');
+  await db.initDb();
+  return db;
 }
 
 exports.handler = async (event) => {
@@ -41,11 +20,16 @@ exports.handler = async (event) => {
     };
   }
 
-  const allowedTimes = services.allowedStartTimes || ['09:00', '13:00', '17:00'];
-  let slots = allowedTimes;
+  let slots = services.allowedStartTimes || ['09:00', '13:00', '17:00'];
 
   try {
-    slots = getAvailableSlots(date, serviceId, getAllBookings(), getAllBlocked(), getAllExtraSlots());
+    const db = await getDbHelpers();
+    const [bookings, blocked, extraSlots] = await Promise.all([
+      db.getAllBookings(),
+      db.getAllBlocked(),
+      db.getAllExtraSlots()
+    ]);
+    slots = getAvailableSlots(date, serviceId, bookings, blocked, extraSlots);
   } catch (err) {
     console.error('[slots]', err.message);
   }

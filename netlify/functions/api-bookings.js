@@ -4,7 +4,8 @@ const {
   services,
   getServiceDuration,
   isSlotAvailable,
-  calculatePrice
+  calculatePrice,
+  isValidBookingTime
 } = require('../../lib/availability');
 const { queueBookingNotifications } = require('../../lib/notifications');
 
@@ -21,33 +22,10 @@ function json(statusCode, body) {
   };
 }
 
-function getDbModule() {
-  try {
-    return require('../../lib/db');
-  } catch (err) {
-    console.error('[bookings] DB module unavailable:', err.message);
-    return null;
-  }
-}
-
-function getAllBookings() {
-  const dbModule = getDbModule();
-  if (!dbModule) return [];
-  try {
-    return dbModule.getDb().prepare('SELECT * FROM bookings ORDER BY booking_date DESC, booking_time DESC').all();
-  } catch {
-    return [];
-  }
-}
-
-function getAllBlocked() {
-  const dbModule = getDbModule();
-  if (!dbModule) return [];
-  try {
-    return dbModule.getDb().prepare('SELECT * FROM blocked_slots ORDER BY block_date, block_time').all();
-  } catch {
-    return [];
-  }
+async function getDbHelpers() {
+  const db = require('../../lib/db');
+  await db.initDb();
+  return db;
 }
 
 function buildBookingRecord(body, pkg, addonList, totalPrice, id) {
@@ -84,41 +62,42 @@ async function saveBooking(body) {
 
   const addonList = Array.isArray(addons) ? addons : [];
   const totalPrice = calculatePrice(serviceId, vehicleType, addonList);
-  const dbModule = getDbModule();
-
-  if (!dbModule) {
-    return { booking: buildBookingRecord(body, pkg, addonList, totalPrice, `web-${Date.now()}`) };
-  }
-
-  const duration = getServiceDuration(serviceId);
-  const available = isSlotAvailable(
-    bookingDate, bookingTime, duration, getAllBookings(), getAllBlocked()
-  );
-  if (!available) {
-    const err = new Error('This time slot is no longer available');
-    err.statusCode = 409;
-    throw err;
-  }
 
   try {
-    const clientId = dbModule.findOrCreateClient({ name, phone, email, address });
-    const db = dbModule.getDb();
-    const result = db.prepare(`
-      INSERT INTO bookings (
-        client_id, name, phone, email, address, vehicle_type,
-        service_id, service_name, addons, comment,
-        booking_date, booking_time, duration_minutes, total_price, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
-    `).run(
+    const db = await getDbHelpers();
+    const duration = getServiceDuration(serviceId);
+    const [allBookings, allBlocked, extraSlots] = await Promise.all([
+      db.getAllBookings(),
+      db.getAllBlocked(),
+      db.getAllExtraSlots()
+    ]);
+
+    if (!isValidBookingTime(bookingDate, bookingTime, extraSlots)) {
+      const err = new Error('Invalid booking time');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const available = isSlotAvailable(
+      bookingDate, bookingTime, duration, allBookings, allBlocked
+    );
+    if (!available) {
+      const err = new Error('This time slot is no longer available');
+      err.statusCode = 409;
+      throw err;
+    }
+
+    const clientId = await db.findOrCreateClient({ name, phone, email, address });
+    const booking = await db.insertBooking([
       clientId, name, phone || null, email || null, address, vehicleType,
       serviceId, pkg.name, JSON.stringify(addonList), comment || null,
-      bookingDate, bookingTime, duration, totalPrice
-    );
+      bookingDate, bookingTime, duration, totalPrice, 'pending'
+    ]);
 
-    dbModule.updateClientStats(clientId);
-    const booking = db.prepare('SELECT * FROM bookings WHERE id = ?').get(result.lastInsertRowid);
+    await db.updateClientStats(clientId);
     return { booking };
   } catch (dbErr) {
+    if (dbErr.statusCode) throw dbErr;
     console.error('[bookings] DB save failed:', dbErr.message);
     return {
       booking: buildBookingRecord(body, pkg, addonList, totalPrice, `web-${Date.now()}`)
@@ -151,11 +130,6 @@ exports.handler = async (event, context) => {
     requestedDate.setHours(0, 0, 0, 0);
     if (requestedDate < today) {
       return json(400, { error: 'Cannot book past dates' });
-    }
-
-    const allowedTimes = services.allowedStartTimes || ['09:00', '13:00', '17:00'];
-    if (!allowedTimes.includes(bookingTime)) {
-      return json(400, { error: 'Invalid booking time' });
     }
 
     const { booking } = await saveBooking(body);
