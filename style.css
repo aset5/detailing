@@ -1,0 +1,912 @@
+/* ==========================================================================
+   1. BASE RESETS & YELLOW / WHITE VARIABLES SYSTEM
+   ========================================================================== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    scroll-behavior: smooth;
+}
+
+:root {
+    --primary-yellow: #f1c40f;    
+    --primary-yellow-hover: #e1b70a; 
+    --light-bg: #ffffff;          
+    --card-bg: #f8f9fa;           
+    --text-main: #1a1d20;         
+    --text-muted: #5a626a;        
+    --border-color: #e9ecef;      
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--light-bg);
+    color: var(--text-main);
+    line-height: 1.6;
+    overflow-x: hidden;
+}
+
+.highlight-yellow {
+    color: var(--primary-yellow);
+    font-weight: 700;
+}
+
+/* Scroll Animation Hooks */
+.reveal-element {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+.reveal-element.active {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* ==========================================================================
+   2. HEADER NAVIGATION
+   ========================================================================== */
+.site-header {
+    background-color: var(--card-bg);
+    padding: 1rem 2rem;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.04);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.header-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo-link {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-main);
+    text-decoration: none;
+    font-weight: 800;
+    font-size: 1.3rem;
+    letter-spacing: 1px;
+}
+
+.logo-link i {
+    color: var(--primary-yellow);
+}
+
+.nav-menu {
+    display: flex;
+    gap: 2rem;
+}
+
+.nav-item {
+    text-decoration: none;
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 0.95rem;
+    transition: color 0.2s ease;
+}
+
+.nav-item:hover {
+    color: var(--primary-yellow);
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.btn-header-cta {
+    background-color: var(--text-main);
+    color: #ffffff;
+    text-decoration: none;
+    padding: 0.5rem 1.2rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+/* Header Phone Contact Link */
+.header-phone-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--text-main);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.95rem;
+    transition: color 0.2s ease;
+}
+
+.header-phone-link i {
+    color: var(--primary-yellow);
+    font-size: 0.85rem;
+}
+
+.header-phone-link:hover {
+    color: var(--primary-yellow-hover);
+}
+
+/* Adjust layout behavior for headers on tiny mobile frames */
+@media (max-width: 480px) {
+    .header-phone-link {
+        font-size: 0.85rem; /* Shrinks text slightly on tiny screens so nothing overlaps */
+    }
+}
+.btn-header-cta:hover {
+    background-color: var(--primary-yellow);
+    color: var(--text-main);
+}
+
+.menu-toggle {
+    background: none;
+    border: none;
+    font-size: 1.3rem;
+    color: var(--text-main);
+    cursor: pointer;
+    display: none;
+}
+
+/* ==========================================================================
+   3. HERO SECTION (90% Sizing Framework)
+   ========================================================================== */
+.hero-section {
+    position: relative;
+    min-height: 80vh;
+    display: flex;
+    align-items: center;
+    background-color: var(--light-bg);
+    padding: 4rem 2rem;
+    background-image: url('bmw.png'); 
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: 95% auto; 
+    border-bottom: 1px solid var(--border-color);
+}
+
+.hero-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+    z-index: 2;
+}
+
+.hero-content {
+    max-width: 580px;
+    background: rgba(255, 255, 255, 0.92); 
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 2.5rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+}
+
+.hero-content .location-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: rgba(241, 196, 15, 0.1);
+    border: 1px solid rgba(241, 196, 15, 0.3);
+    color: #c9a000;
+    padding: 0.4rem 1.1rem;
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+}
+
+.hero-content .hero-title {
+    color: var(--text-main);
+    font-size: 3.2rem;
+    font-weight: 800;
+    line-height: 1.15;
+    margin-bottom: 1.5rem;
+}
+
+.hero-content .hero-subtitle {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    margin-bottom: 2.5rem;
+}
+
+.hero-cta-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 2rem;
+}
+
+.btn-primary {
+    display: inline-block;
+    background-color: var(--primary-yellow);
+    color: var(--text-main);
+    text-decoration: none;
+    font-weight: 700;
+    padding: 1rem 2.5rem;
+    border-radius: 6px;
+    border: none;
+    box-shadow: 0 4px 15px rgba(241, 196, 15, 0.3);
+    transition: all 0.2s ease;
+    text-align: center;
+    cursor: pointer;
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-yellow-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(241, 196, 15, 0.4);
+}
+
+.rating-container {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.stars {
+    color: var(--primary-yellow);
+    display: flex;
+    gap: 2px;
+}
+
+
+
+/* ==========================================================================
+   HERO BACKDROP REAR GLOW EFFECT (MAX BRIGHTNESS)
+   ========================================================================== */
+.hero-wrapper {
+    max-width: 1300px;
+    margin: 4rem auto; /* Extra room so the bright light doesn't clip */
+    padding: 0 1.5rem;
+    position: relative;
+    z-index: 1;
+}
+
+/* LAYER 1: Core Intense Radial Light Beam directly behind the center */
+.hero-wrapper::before {
+    content: "";
+    position: absolute;
+    /* Pushes the light well past the image boundaries */
+    top: -30px;
+    left: -30px;
+    right: -30px;
+    bottom: -30px;
+    
+    /* Solid high-opacity yellow core fading out to the edges */
+    background: radial-gradient(circle, rgba(241, 196, 15, 0.8) 0%, rgba(241, 196, 15, 0.3) 50%, transparent 80%);
+    
+    /* Slightly less blur keeps the light rays more concentrated and vivid */
+    filter: blur(25px);
+    z-index: -1; 
+    pointer-events: none;
+    transition: all 0.4s ease;
+}
+
+/* LAYER 2: Drop-shadow wrap directly under the card container for maximum edge brightness */
+.hero-wrapper::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 1.5rem; /* Matches wrapper horizontal padding */
+    right: 1.5rem;
+    bottom: 0;
+    border-radius: 20px; /* Perfectly matches your hero-section frame shape */
+    
+    /* Gives a deep, blinding neon edge projection */
+    box-shadow: 0 0 50px 15px rgba(241, 196, 15, 0.65);
+    
+    z-index: -2;
+    pointer-events: none;
+    transition: all 0.4s ease;
+}
+
+/* Hover effect: Ignites the light to absolute maximum intensity */
+.hero-wrapper:hover::before {
+    background: radial-gradient(circle, rgba(255, 215, 0, 0.95) 0%, rgba(241, 196, 15, 0.4) 45%, transparent 75%);
+    filter: blur(20px);
+}
+
+.hero-wrapper:hover::after {
+    box-shadow: 0 0 70px 25px rgba(241, 196, 15, 0.85);
+}
+
+.hero-section {
+    position: relative;
+    min-height: 75vh;
+    display: flex;
+    align-items: center;
+    padding: 4rem 2rem;
+    
+    background-image: url('bmw.png'); 
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: cover;
+    
+    border-radius: 20px;
+    overflow: hidden;
+    
+    /* Upgraded border to tie into the glow layout natively */
+    border: 1px solid rgba(241, 196, 15, 0.4);
+    box-sizing: border-box;
+    z-index: 2; 
+}
+/* ==========================================================================
+   4. EXPANDED FEATURES GRID MATRIX (Side-by-Side Row Alignment)
+   ========================================================================== */
+.features-section {
+    background-color: var(--card-bg);
+    padding: 5rem 2rem;
+    color: var(--text-main);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.features-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.features-header {
+    text-align: center;
+    margin-bottom: 3.5rem;
+}
+
+/* Responsive 3-Column layout that forms a clean 2-row block */
+.features-grid-matrix {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    width: 100%;
+}
+
+/* Card item style adjustments */
+.feature-card-item {
+    background-color: var(--light-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 2.2rem 2rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.015);
+    transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.feature-card-item:hover {
+    transform: translateY(-4px);
+    border-color: rgba(241, 196, 15, 0.5);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.04);
+}
+
+.feature-icon-box {
+    width: 46px;
+    height: 46px;
+    background-color: rgba(241, 196, 15, 0.1);
+    border: 1px solid var(--primary-yellow);
+    border-radius: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 1.2rem;
+}
+
+.feature-icon-box i {
+    color: #c9a000;
+    font-size: 1.2rem;
+}
+
+.feature-card-item h3 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 0.8rem;
+    color: var(--text-main);
+}
+
+.feature-card-item p {
+    color: var(--text-muted);
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+
+/* --- Responsive Layout Breaks --- */
+@media (max-width: 950px) {
+    /* Shifts to a comfortable 2-column layout on tablets */
+    .features-grid-matrix {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.25rem;
+    }
+}
+
+@media (max-width: 600px) {
+    /* Stacks into a clean single column on mobile screens */
+    .features-grid-matrix {
+        grid-template-columns: 1fr;
+    }
+    .feature-card-item {
+        padding: 1.8rem 1.5rem;
+    }
+}
+
+/* ==========================================================================
+  /* ==========================================================================
+   MOVING INFINITE TESTIMONIAL TICKER STYLES
+   ========================================================================== */
+.testimonials-ticker-section {
+    background-color: var(--light-bg);
+    padding: 3rem 0; /* Keeps vertical layout tightly controlled */
+    overflow: hidden; /* Hides extra cards moving off screen frames */
+    border-bottom: 1px solid var(--border-color);
+    position: relative;
+}
+
+/* Wrapper creates a subtle fade mask layout on left and right edges */
+.ticker-wrap {
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+}
+
+.ticker-wrap::before,
+.ticker-wrap::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    width: 100px;
+    height: 100%;
+    z-index: 2;
+    pointer-events: none;
+}
+.ticker-wrap::before { left: 0; background: linear-gradient(to right, var(--light-bg), transparent); }
+.ticker-wrap::after { right: 0; background: linear-gradient(to left, var(--light-bg), transparent); }
+
+/* Continuous inline row line setup */
+.ticker-track {
+    display: flex;
+    width: max-content;
+    gap: 1.5rem;
+}
+
+/* Comfortable, highly-readable box dimensions */
+.ticker-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 1.5rem;
+    width: 320px; /* Strong, clear desktop visual width profile */
+    flex-shrink: 0; /* Prevents cards from smashing together compressed */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+}
+
+.ticker-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.8rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    padding-bottom: 0.4rem;
+}
+
+.ticker-name {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.ticker-stars {
+    color: var(--primary-yellow);
+    font-size: 0.75rem;
+    display: flex;
+    gap: 2px;
+}
+
+.ticker-text {
+    font-size: 0.88rem;
+    line-height: 1.45;
+    color: var(--text-muted);
+    font-style: italic;
+}
+/* ==========================================================================
+   6. UNIFIED GRID PRICING CATALOG STYLES
+   ========================================================================== */
+.pricing-section {
+    background-color: var(--light-bg);
+    padding: 5rem 2rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.pricing-container {
+    max-width: 1200px; /* Expanded for horizontal layout ease */
+    margin: 0 auto;
+}
+
+.pricing-header {
+    text-align: center;
+    margin-bottom: 3.5rem;
+}
+
+.category-tag {
+    color: #c9a000;
+    font-weight: 700;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    display: inline-block;
+    margin-bottom: 0.5rem;
+}
+
+.category-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: 0.8rem;
+}
+
+.category-desc {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    max-width: 650px;
+    margin: 0 auto;
+}
+
+/* 3-Column Flex-Grid Container */
+.pricing-grid-layout {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem; /* Tight gap logic to fit nicely across one frame row */
+    align-items: stretch;
+}
+
+/* Individual Vertical Column Cards */
+.price-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 2rem;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* Keeps booking action links locked at bottoms evenly */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.01);
+    transition: all 0.3s ease;
+}
+
+/* Visual highlights on middle "Featured" option */
+.price-card.featured-card {
+    background-color: #ffffff;
+    border: 2px solid var(--primary-yellow);
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(241, 196, 15, 0.1);
+}
+
+.price-card:hover {
+    border-color: rgba(241, 196, 15, 0.6);
+    transform: translateY(-5px);
+}
+
+/* Top Mini Identifier Ribbons */
+.price-badge-top {
+    position: absolute;
+    top: -12px;
+    left: 20px;
+    background-color: var(--text-main);
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.25rem 0.8rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.price-badge-top.popular-badge {
+    background-color: var(--primary-yellow);
+    color: var(--text-main);
+}
+
+/* Compact Content Alignment Headers */
+.price-card-main-header {
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 1.2rem;
+    margin-bottom: 1.2rem;
+    text-align: center;
+}
+
+.price-card-main-header h3 {
+    font-size: 1.45rem;
+    font-weight: 800;
+    margin-bottom: 0.4rem;
+}
+
+.price-card-main-header .duration-tag {
+    margin-bottom: 1rem;
+}
+
+.price-amount {
+    font-size: 2.2rem;
+    font-weight: 900;
+    color: var(--text-main);
+    line-height: 1;
+}
+
+.price-extra {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    display: block;
+    margin-top: 0.2rem;
+}
+
+.package-best-for {
+    font-size: 0.92rem;
+    line-height: 1.4;
+    color: var(--text-main);
+    margin-bottom: 1.2rem;
+    min-height: 40px; /* Keeps card body sections aligned */
+}
+
+/* Features List Settings inside Grid Tiers */
+.package-specs-list {
+    flex-grow: 1; /* Pushes button element cleanly down */
+    margin-bottom: 1.5rem;
+}
+
+.package-specs-list h4 {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    color: var(--text-main);
+    letter-spacing: 0.5px;
+    margin-bottom: 0.6rem;
+}
+
+.package-specs-list h4.exclusion-title {
+    margin-top: 1rem;
+}
+
+.package-specs-list ul {
+    list-style: none;
+}
+
+.package-specs-list li {
+    font-size: 0.88rem;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+    position: relative;
+    padding-left: 1.2rem;
+    line-height: 1.4;
+}
+
+.package-specs-list li::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: #c9a000;
+    font-weight: 700;
+}
+
+.package-specs-list ul.excluded-list li::before {
+    content: "✕";
+    color: #dc3545;
+}
+
+.price-card .btn-primary {
+    width: 100%;
+    padding: 0.8rem 1.5rem;
+    font-size: 0.95rem;
+}
+
+/* Active Highlight Hook */
+.price-card.highlight-selected {
+    border-color: var(--primary-yellow) !important;
+    box-shadow: 0 0 25px rgba(241, 196, 15, 0.35) !important;
+}
+
+
+/* ==========================================================================
+   PRICING ADD-ONS STYLES WITH ICONS
+   ========================================================================== */
+.addons-divider {
+    text-align: center;
+    margin-top: 4rem;
+    margin-bottom: 2rem;
+    position: relative;
+}
+
+.addons-divider h3 {
+    font-size: 1.8rem;
+    font-weight: 800;
+    margin-bottom: 0.4rem;
+    display: inline-block;
+    background-color: var(--light-bg);
+    padding: 0 1rem;
+    z-index: 1;
+}
+
+.addons-divider p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+}
+
+.addons-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.2rem;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.addon-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: border-color 0.2s ease;
+}
+
+.addon-card:hover {
+    border-color: rgba(241, 196, 15, 0.5);
+}
+
+/* Align icon and text next to each other */
+.addon-left-side {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding-right: 1rem;
+}
+
+/* Subtle accent circle wrapper for icons */
+.addon-icon {
+    width: 38px;
+    height: 38px;
+    background-color: rgba(241, 196, 15, 0.1);
+    border: 1px solid var(--primary-yellow);
+    border-radius: 6px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.addon-icon i {
+    color: #c9a000;
+    font-size: 1rem;
+}
+
+.addon-info h4 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 0.2rem;
+    color: var(--text-main);
+}
+
+.addon-info p {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+.addon-price {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #c9a000;
+    white-space: nowrap;
+}
+
+/* --- Responsive Breakpoints --- */
+@media (max-width: 768px) {
+    .addons-grid {
+        grid-template-columns: 1fr;
+        gap: 0.8rem;
+    }
+}
+
+/* ==========================================================================
+   7. FOOTER & MEDIA INTERCEPTIONS
+   ========================================================================== */
+.site-footer {
+    background-color: var(--text-main);
+    color: #ffffff;
+    padding: 4rem 2rem 2rem 2rem;
+}
+
+.footer-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.footer-logo i {
+    color: var(--primary-yellow);
+}
+
+.footer-bottom {
+    margin-top: 2rem;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+/* --- Responsive Adjustments --- */
+@media (max-width: 950px) {
+    /* Stacks cards neatly onto mobile/tablet views naturally */
+    .pricing-grid-layout {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+    .price-card.featured-card {
+        transform: translateY(0);
+    }
+}
+
+/* ==========================================================================
+   7. FOOTER
+   ========================================================================== */
+.site-footer {
+    background-color: var(--text-main);
+    color: #ffffff;
+    padding: 4rem 2rem 2rem 2rem;
+}
+
+.footer-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.footer-logo i {
+    color: var(--primary-yellow);
+}
+
+.footer-bottom {
+    margin-top: 2rem;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+/* ==========================================================================
+   8. RESPONSIVE DESIGN MEDIA BREAKPOINTS
+   ========================================================================== */
+@media (max-width: 850px) {
+    .menu-toggle {
+        display: block;
+        z-index: 1001;
+    }
+
+    .nav-menu {
+        position: fixed;
+        top: 0;
+        right: -100%;
+        width: 75%;
+        height: 100vh;
+        background-color: var(--card-bg);
+        flex-direction: column;
+        padding: 6rem 2rem;
+        transition: right 0.4s ease;
+        box-shadow: -5px 0 15px rgba(0,0,0,0.05);
+    }
+
+    .nav-menu.mobile-open {
+        right: 0;
+    }
+
+    .features-grid, .testimonials-grid, .package-specs-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+    
+    .max-width-specs {
+        grid-column: span 1;
+    }
+    
+    .price-card-main {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .price-card-main .btn-primary {
+        width: 100%;
+    }
+}

@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<link rel="icon" type="image/png" href="my-logo-icon.png.png">
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Glow on the Go | Premium Detailing</title>
+    <!-- FontAwesome Icons Link -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Separate Core Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Navigation Header Section -->
+    <header class="site-header">
+        <div class="header-container">
+            <a href="#" class="logo-link">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> GLOW ON THE GO
+            </a>
+            
+            <nav class="nav-menu" id="navMenu">
+                <a href="#features" class="nav-item">Why Us</a>
+                <a href="#testimonials" class="nav-item">Reviews</a>
+                <a href="#pricing" class="nav-item">Pricing</a>
+            </nav>
+
+            <div class="header-actions">
+                <!-- Click-to-Call Business Phone Number Link -->
+                <a href="tel:8787871235" class="header-phone-link">
+                    <i class="fa-solid fa-phone"></i> +878 787 1235
+                </a>
+                <a href="#" onclick="openBookingCalendar(event);" class="btn-header-cta">Book Now</a>
+                <button class="menu-toggle" id="menuToggle" aria-label="Toggle Navigation Menu">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="hero-container">
+            <div class="hero-content reveal-element">
+                <div class="location-badge">
+                    <i class="fa-solid fa-location-dot"></i> Pittsburgh
+                </div>
+                <h1 class="hero-title">Premium <span class="highlight-yellow">Car Detailing</span> Right At Your Door</h1>
+                <p class="hero-subtitle">Professional detailing services that come to your home, office, or anywhere in Pittsburgh..</p>
+                <div class="hero-cta-row">
+                    <a href="#" onclick="openBookingCalendar(event);" class="btn-primary">Book Now</a>
+                    <div class="rating-container">
+                        <div class="stars">
+                            <i class="fa-solid fa-star"></i>
+                            <i class="fa-solid fa-star"></i>
+                            <i class="fa-solid fa-star"></i>
+                            <i class="fa-solid fa-star"></i>
+                            <i class="fa-solid fa-star"></i>
+                        </div>
+                        <span class="rating-text">5.0 Star Rated Specialist</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Why Choose Us Section -->
+<section id="features" class="features-section">
+    <div class="features-container">
+        <div class="features-header reveal-element">
+            <span class="features-sub">Premium Benefits</span>
+            <h2 class="features-title">Why Choose Us</h2>
+            <p class="features-desc">We're not just another detailing service. Here's why Pittsburgh trusts us with their vehicles.</p>
+        </div>
+        
+        <!-- 6-card grid matrix modeled from image_905346.png layout -->
+        <div class="features-grid-matrix">
+            
+            <!-- Card 1: We Come to You -->
+            <div class="feature-card-item reveal-element">
+                <div class="feature-icon-box">
+                    <i class="fa-solid fa-truck-fast"></i>
+                </div>
+                <h3>We Come to You</h3>
+                <p>No need to waste time at a car wash. We bring our own water, electricity, and premium equipment directly to your location .</p>
+            </div>
+
+            <!-- Card 2: Attention to Detail -->
+            <div class="feature-card-item reveal-element">
+                <div class="feature-icon-box">
+                    <i class="fa-solid fa-award"></i>
+                </div>
+                <h3>Attention to Detail</h3>
+                <p>We don't cut corners. Every surface, seam, and crevice gets the meticulous care it deserves to achieve showroom clarity.</p>
+            </div>
+
+            <!-- Card 3: Local & Trusted -->
+            <div class="feature-card-item reveal-element">
+                <div class="feature-icon-box">
+                    <i class="fa-solid fa-location-dot"></i>
+                </div>
+                <h3>Local & Trusted</h3>
+                <p>Proudly serving our community with reliable automotive care. Your neighbors trust us with their personal and family vehicles.</p>
+            </div>
+
+            <!-- Card 4: Satisfaction Guarantee -->
+            <div class="feature-card-item reveal-element">
+                <div class="feature-icon-box">
+                    <i class="fa-solid fa-thumbs-up"></i>
+                </div>
+                <h3>Satisfaction Guarantee</h3>
+                <p>Not happy with our service? We'll make it right. Your satisfaction is our absolute priority from start to finish.</p>
+            </div>
+
+            <!-- Card 5: Eco-Friendly Products -->
+            <div class="feature-card-item reveal-element">
+                <div class="feature-icon-box">
+                    <i class="fa-solid fa-leaf"></i>
+                </div>
+                <h3>Eco-Friendly Products</h3>
+                <p>We use environmentally safe, biodegradable cleaning products for every detail.</p>
+            </div>
+
+            <!-- Card 6: Fully Insured -->
+            <div class="feature-card-item reveal-element">
+                <div class="feature-icon-box">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <h3>Fully Insured</h3>
+                <p>Rest easy knowing your vehicle is completely protected. We operate as a professional, fully licensed and insured detailing service.</p>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+  
+
+    <!-- Pricing Section -->
+   <section id="pricing" class="pricing-section">
+    <div class="pricing-container">
+        
+        <div class="pricing-header reveal-element">
+            <span class="category-tag">Our Menu</span>
+            <h2 class="category-title">Choose Your <span class="highlight-yellow">Detailing</span> Tier</h2>
+            
+        </div>
+
+        <div class="pricing-grid-layout">
+            
+            <div class="price-card reveal-element" id="package-refresh">
+                
+                <div class="price-card-main-header">
+                    <h3>Interior only</h3>
+                    <div class="duration-tag"><i class="fa-regular fa-clock"></i> 1-3 hours</div>
+                    <div class="price-amount">$189</div>
+                    <span class="price-extra">+$40 for larger vehicles</span>
+                </div>
+                
+                <p class="package-best-for"><strong>Best for:</strong> interiors that need a professional maintenance clean.</p>
+                
+                <div class="package-specs-list">
+                    <h4>Included:</h4>
+                    <ul>
+                        <li>Full interior vacuum</li>
+                        <li>Floor mat cleaning</li>
+                        <li>Leather wipe-down</li>
+                        <li>Panels & crevices deep cleaned</li>
+                        <li>Seat rails & pedals detailed</li>
+                        <li>Door jamb & glass wipe</li>
+                         <li>Headliner cleaning</li>
+                    </ul>
+                    <h4 class="exclusion-title">Not Included:</h4>
+                    <ul class="excluded-list">
+                        <li>Shampooing / extraction</li>
+                        <li>Pet hair removal</li>
+                       
+                    </ul>
+                </div>
+               <button class="btn-primary package-checkout-btn" onclick="openBookingCalendar(event);" data-package="Ceramic Coating">Select</button>
+            </div>
+
+            <div class="price-card featured-card reveal-element" id="package-classic">
+                <div class="price-badge-top popular-badge">Most Popular</div>
+                <div class="price-card-main-header">
+                    <h3>Full detailing</h3>
+                    <div class="duration-tag"><i class="fa-regular fa-clock"></i> 2-4 hours</div>
+                    <div class="price-amount">$239</div>
+                    <span class="price-extra">+$40 for larger vehicles</span>
+                </div>
+                
+                <p class="package-best-for"><strong>Best for:</strong> Vehicles needing a complete professional reset inside & out.</p>
+                
+                <div class="package-specs-list">
+                    <h4>Inside & Out Features:</h4>
+                    <ul>
+                        <li><strong>Everything in Interior detailing</strong></li>
+                        <li>Tires, wheels & wheel wells scrubbed & washed</li>
+                        <li>Exterior hand washed with premium car shampoo</li>
+                        <li>Exterior badges, grill & gas cap hand brushed</li>
+                        <li>Exterior glass cleaned</li>
+                        <li>Tires dressed</li>
+                        <li>Paint sealant applied for added gloss and protection</li>
+                    </ul>
+                </div>
+                <button class="btn-primary package-checkout-btn" onclick="openBookingCalendar(event);" data-package="Ceramic Coating">Select</button>
+            </div>
+
+           <!-- COLUMN 3: ULTIMATE CERAMIC COATING -->
+<div class="price-card reveal-element" id="package-ceramic">
+    <div class="price-badge-top">Ultimate Protection</div>
+    <div class="price-card-main-header">
+        <h3>Premium Ceramic Coating</h3>
+        <div class="duration-tag"><i class="fa-regular fa-clock"></i> 4-6 hours</div>
+        <div class="price-amount">$670</div>
+        <span class="price-extra">Includes multi-year surface protection</span>
+    </div>
+    
+    <p class="package-best-for"><strong>Best for:</strong> Owners wanting permanent mirror gloss, extreme water beading, and total defense against elements.</p>
+    
+    <div class="package-specs-list">
+        <h4>The Premium Treatment:</h4>
+       <ul>
+            <li><strong>Premium Ceramic Coating</strong> applied to paint</li>
+            <li>Creates a deep, glossy, candy-like shine</li>
+            <li>Repels water, dirt, mud, and road grime</li>
+            <li><strong>Clay Bar & Iron Decontamination</strong></li>
+            <li>Machine polish to clean and prep the paint</li>
+            <li>Coats and protects exterior trim and glass</li>
+            <li>Shields paint from harsh UV sun damage</li>
+        </ul>
+    </div>
+    <button class="btn-primary package-checkout-btn" onclick="openBookingCalendar(event);" data-package="Ceramic Coating">Select</button>
+</div>
+
+        </div>
+    </div>
+
+
+
+
+      <!-- Unified Add-Ons Sub-Section with Icons -->
+        <div class="addons-divider">
+            <h3>Custom Add-Ons</h3>
+            <p>Need something extra? Customize your package with these specialized services.</p>
+        </div>
+
+        <div class="addons-grid">
+            <!-- Add-on 1: Pet Hair -->
+            <div class="addon-card">
+                <div class="addon-left-side">
+                    <div class="addon-icon"><i class="fa-solid fa-paw"></i></div>
+                    <div class="addon-info">
+                        <h4>Pet Hair Removal</h4>
+                        <p>Deep vacuuming and specialized tools to lift stubborn pet hair from carpets and seats.</p>
+                    </div>
+                </div>
+                <div class="addon-price">$40+</div>
+            </div>
+
+            <!-- Add-on 2: Seat Shampoo -->
+            <div class="addon-card">
+                <div class="addon-left-side">
+                    <div class="addon-icon"><i class="fa-solid fa-soap"></i></div>
+                    <div class="addon-info">
+                        <h4>Seat Shampoo & Extraction</h4>
+                        <p>Deep foam shampoo and hot water extraction to pull out stains, dirt, and odors.</p>
+                    </div>
+                </div>
+                <div class="addon-price">$40+</div>
+            </div>
+
+            <!-- Add-on 3: Engine Bay -->
+            <div class="addon-card">
+                <div class="addon-left-side">
+                    <div class="addon-icon"><i class="fa-solid fa-gears"></i></div>
+                    <div class="addon-info">
+                        <h4>Engine Bay Detail</h4>
+                        <p>Degreasing, carefully cleaning, and dressing all plastic components under the hood.</p>
+                    </div>
+                </div>
+                <div class="addon-price">$50</div>
+            </div>
+
+            <!-- Add-on 4: Headlight Restoration -->
+            <div class="addon-card">
+                <div class="addon-left-side">
+                    <div class="addon-icon"><i class="fa-solid fa-lightbulb"></i></div>
+                    <div class="addon-info">
+                        <h4>Headlight Restoration</h4>
+                        <p>Multi-stage wet sanding and sealing to clear up foggy, yellowed, oxidized lenses.</p>
+                    </div>
+                </div>
+                <div class="addon-price">$40</div>
+            </div>
+        </div>
+
+
+</section>
+
+
+
+<!-- Infinite Moving Review Ticker Section -->
+<section id="testimonials" class="testimonials-ticker-section">
+    <div class="ticker-wrap">
+        <div class="ticker-track" id="review-track">
+            
+            <!-- CARD 1 -->
+            <div class="ticker-card">
+                <div class="ticker-meta">
+                    <span class="ticker-name">Matt T.</span>
+                    <div class="ticker-stars"><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i></div>
+                </div>
+                <p class="ticker-text">"Excellent job on my cars, I love the outcome! Kobe was great to work with, fully detailing my cars in my own driveway."</p>
+            </div>
+            
+            <!-- CARD 2 -->
+            <div class="ticker-card">
+                <div class="ticker-meta">
+                    <span class="ticker-name">Nick L.</span>
+                    <div class="ticker-stars"><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i></div>
+                </div>
+                <p class="ticker-text">"Kobe did a fantastic job. From the first call through a reschedule request to completion he was very responsive. SUV looks brand new!"</p>
+            </div>
+            
+            <!-- CARD 3 -->
+            <div class="ticker-card">
+                <div class="ticker-meta">
+                    <span class="ticker-name">Johanna H.</span>
+                    <div class="ticker-stars"><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i></div>
+                </div>
+                <p class="ticker-text">"Incredibly thorough, genuinely there is not even a spec of dust left. Kobe takes immense pride in his work!"</p>
+            </div>
+            
+            <!-- CARD 4 -->
+            <div class="ticker-card">
+                <div class="ticker-meta">
+                    <span class="ticker-name">Heidi B.</span>
+                    <div class="ticker-stars"><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i></div>
+                </div>
+                <p class="ticker-text">"Communication was awesome! Showed up right on time and gave me a reminder. Car absolutely looks like new."</p>
+            </div>
+
+            <!-- DUPLICATE SET (Required for a seamless, un-broken infinite looping effect) -->
+            <div class="ticker-card">
+                <div class="ticker-meta">
+                    <span class="ticker-name">Matt T.</span>
+                    <div class="ticker-stars"><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i></div>
+                </div>
+                <p class="ticker-text">"Excellent job on my cars, I love the outcome! Kobe was great to work with, fully detailing my cars in my own driveway."</p>
+            </div>
+            <div class="ticker-card">
+                <div class="ticker-meta">
+                    <span class="ticker-name">Nick L.</span>
+                    <div class="ticker-stars"><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i></div>
+                </div>
+                <p class="ticker-text">"Kobe did a fantastic job. From the first call through a reschedule request to completion he was very responsive. SUV looks brand new!"</p>
+            </div>
+            <div class="ticker-card">
+                <div class="ticker-meta">
+                    <span class="ticker-name">Johanna H.</span>
+                    <div class="ticker-stars"><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i></div>
+                </div>
+                <p class="ticker-text">"Incredibly thorough, genuinely there is not even a spec of dust left. Kobe takes immense pride in his work!"</p>
+            </div>
+            <div class="ticker-card">
+                <div class="ticker-meta">
+                    <span class="ticker-name">Heidi B.</span>
+                    <div class="ticker-stars"><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i></div>
+                </div>
+                <p class="ticker-text">"Communication was awesome! Showed up right on time and gave me a reminder. Car absolutely looks like new."</p>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+    <!-- Footer Space Section -->
+    <footer class="site-footer">
+        <div class="footer-container">
+            <div class="footer-logo">
+                <h2><i class="fa-solid fa-wand-magic-sparkles"></i> GLOW ON THE GO</h2>
+            </div>
+            <p class="footer-bottom">&copy; 2026 Glow on the Go Detailing. All rights reserved. </p>
+        </div>
+    </footer>
+
+    <!-- Core Interactive Script Logic -->
+    <script src="script.js"></script>
+
+<!-- Calendly inline widget begin -->
+<div class="calendly-inline-widget" data-url="https://calendly.com/detailingglowonthego/30min" style="min-width:320px;height:700px;"></div>
+<script type="text/javascript" src="https://assets.calendly.com/assets/external/widget.js" async></script>
+<!-- Calendly inline widget end -->
+</body>
+</html>
+
+

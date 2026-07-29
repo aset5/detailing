@@ -1,0 +1,48 @@
+{
+  "businessHours": {
+    "start": 9,
+    "end": 18
+  },
+  "slotIntervalMinutes": 60,
+  "packages": [
+    {
+      "id": "interior",
+      "name": "Interior only",
+      "price": 189,
+      "durationMinutes": 180,
+      "description": "1-3 hours",
+      "image": "bmw.png"
+    },
+    {
+      "id": "full",
+      "name": "Full detailing",
+      "price": 239,
+      "durationMinutes": 240,
+      "description": "2-4 hours",
+      "featured": true,
+      "image": "bmw.png"
+    },
+    {
+      "id": "ceramic",
+      "name": "Premium Ceramic Coating",
+      "price": 670,
+      "durationMinutes": 360,
+      "description": "4-6 hours",
+      "image": "bmw.png"
+    }
+  ],
+  "addons": [
+    { "id": "pet-hair", "name": "Pet Hair Removal", "priceFrom": 40 },
+    { "id": "seat-shampoo", "name": "Seat Shampoo & Extraction", "priceFrom": 40 },
+    { "id": "engine-bay", "name": "Engine Bay Detail", "price": 50 },
+    { "id": "headlight", "name": "Headlight Restoration", "price": 40 }
+  ],
+  "vehicleTypes": [
+    { "id": "sedan", "name": "Sedan" },
+    { "id": "suv", "name": "SUV" },
+    { "id": "truck", "name": "Truck" },
+    { "id": "van", "name": "Van" }
+  ],
+  "allowedStartTimes": ["09:00", "13:00", "17:00"],
+  "largeVehicleSurcharge": 40
+}
