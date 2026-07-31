@@ -111,24 +111,33 @@ app.get('/api/address/search', async (req, res) => {
   const query = req.query.q?.trim();
   if (!query || query.length < 2) return res.json([]);
 
-  if (process.env.GOOGLE_MAPS_API_KEY) {
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+
+  if (apiKey) {
     try {
-      // Координаты Питтсбурга и радиус 40 миль (64 374 метра)
+      // Питтсбург: 40.4406, -79.9959 | Радиус 40 миль = 64374 метра
       const lat = 40.4406;
       const lng = -79.9959;
-      const radius = 64374; // 40 миль в метрах
+      const radius = 64374;
 
-      const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&types=address&components=country:us&location=${lat},${lng}&radius=${radius}&strictbounds=true&key=${process.env.GOOGLE_MAPS_API_KEY}`;
-      
+      const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&types=address&components=country:us&location=${lat},${lng}&radius=${radius}&strictbounds=true&key=${apiKey}`;
+
       const response = await fetch(url);
       const data = await response.json();
-      if (data.predictions?.length) {
+
+      if (data.status === 'OK' && data.predictions?.length) {
         return res.json(data.predictions.map(p => ({ address: p.description })));
+      } else {
+        console.warn('[Address] Google Places status:', data.status, data.error_message);
       }
     } catch (err) {
       console.error('[Address] Google API error:', err.message);
     }
   }
+
+  // Если ключа Google нет или произошла ошибка, не показываем результаты из Индии/других штатов
+  return res.json([]);
+});
 
   try {
     const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=6&lang=en&lat=40.4406&lon=-79.9959`;
