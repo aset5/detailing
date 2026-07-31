@@ -117,7 +117,7 @@ app.get('/api/address/search', async (req, res) => {
     try {
       const lat = 40.4406;
       const lng = -79.9959;
-      const radius = 64374; // 40 миль
+      const radius = 64374; // 40 миль в метрах
 
       const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&types=address&components=country:us&location=${lat},${lng}&radius=${radius}&strictbounds=true&key=${apiKey}`;
 
@@ -134,9 +134,7 @@ app.get('/api/address/search', async (req, res) => {
     }
   }
 
-  return res.json([]);
-});
-
+  // Фолбэк 1: Photon API
   try {
     const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=6&lang=en&lat=40.4406&lon=-79.9959`;
     const response = await fetch(photonUrl, {
@@ -151,15 +149,16 @@ app.get('/api/address/search', async (req, res) => {
     console.error('[Address] Photon API error:', err.message);
   }
 
+  // Фолбэк 2: Nominatim API
   try {
     const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ', Pittsburgh, PA')}&format=json&limit=6&countrycodes=us`;
     const response = await fetch(url, {
       headers: { 'Accept-Language': 'en', 'User-Agent': 'GlowOnTheGo/1.0' }
     });
     const results = await response.json();
-    res.json(results.map(r => ({ address: r.display_name })));
+    return res.json(results.map(r => ({ address: r.display_name })));
   } catch {
-    res.json([]);
+    return res.json([]);
   }
 });
 
@@ -672,7 +671,6 @@ app.put('/api/admin/bookings/:id', requireAuth, async (req, res) => {
 
   const booking = await getBookingById(req.params.id);
 
-  // If booking was changed to confirmed, send notifications
   if (existing.status !== 'confirmed' && updatedStatus === 'confirmed') {
     queueBookingNotifications(booking);
   }
