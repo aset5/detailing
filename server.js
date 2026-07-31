@@ -115,10 +115,9 @@ app.get('/api/address/search', async (req, res) => {
 
   if (apiKey) {
     try {
-      // Питтсбург: 40.4406, -79.9959 | Радиус 40 миль = 64374 метра
       const lat = 40.4406;
       const lng = -79.9959;
-      const radius = 64374;
+      const radius = 64374; // 40 миль
 
       const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&types=address&components=country:us&location=${lat},${lng}&radius=${radius}&strictbounds=true&key=${apiKey}`;
 
@@ -135,7 +134,6 @@ app.get('/api/address/search', async (req, res) => {
     }
   }
 
-  // Если ключа Google нет или произошла ошибка, не показываем результаты из Индии/других штатов
   return res.json([]);
 });
 
