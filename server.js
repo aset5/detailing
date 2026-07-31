@@ -113,7 +113,13 @@ app.get('/api/address/search', async (req, res) => {
 
   if (process.env.GOOGLE_MAPS_API_KEY) {
     try {
-      const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&types=address&components=country:us&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+      // Координаты Питтсбурга и радиус 40 миль (64 374 метра)
+      const lat = 40.4406;
+      const lng = -79.9959;
+      const radius = 64374; // 40 миль в метрах
+
+      const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&types=address&components=country:us&location=${lat},${lng}&radius=${radius}&strictbounds=true&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+      
       const response = await fetch(url);
       const data = await response.json();
       if (data.predictions?.length) {
