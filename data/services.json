@@ -8,7 +8,7 @@
     {
       "id": "interior",
       "name": "Interior only",
-      "price": 239,
+      "price": 219,
       "durationMinutes": 180,
       "description": "1-3 hours",
       "image": "bmw.png"
@@ -16,7 +16,7 @@
     {
       "id": "full",
       "name": "Full detailing",
-      "price": 279,
+      "price": 259,
       "durationMinutes": 240,
       "description": "2-4 hours",
       "featured": true,
