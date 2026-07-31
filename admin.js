@@ -283,7 +283,19 @@ async function renderDayBookings() {
 
     state.daySlots = dayData.slots || [];
     state.dayExtraSlots = dayData.extraSlots || [];
-    state.dayBookings = Array.isArray(bookings) ? bookings.filter(b => b.status !== 'cancelled') : [];
+
+    // 1. Получаем все активные бронирования
+    const rawBookings = Array.isArray(bookings) ? bookings.filter(b => b.status !== 'cancelled') : [];
+
+    // 2. СОРТИРУЕМ ПО ВРЕМЕНИ: переводим HH:MM в минуты (чтобы 09:00 шло раньше 13:00 и 17:00)
+    state.dayBookings = rawBookings.sort((a, b) => {
+      const getMinutes = (t) => {
+        if (!t) return 0;
+        const [h, m] = t.split(':').map(Number);
+        return (h || 0) * 60 + (m || 0);
+      };
+      return getMinutes(a.booking_time) - getMinutes(b.booking_time);
+    });
 
     if (!state.dayBookings.length) {
       list.innerHTML = `
