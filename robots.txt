@@ -1,7 +1,4 @@
 User-agent: *
 Allow: /
 
-Disallow: /admin
-Disallow: /api/
-
 Sitemap: https://detailingpittsburgh.today/sitemap.xml
