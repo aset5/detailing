@@ -494,6 +494,15 @@ async function submitBooking() {
       successEl.textContent = 'Booking submitted successfully. We will contact you shortly.';
     }
     successEl.style.display = 'block';
+
+
+if (typeof gtag === 'function') {
+  gtag('event', 'booking_success', {
+    service_type: bookingState.serviceId
+  });
+}
+
+    
     document.getElementById('bookingFooter').style.display = 'none';
     document.querySelector('.booking-steps').style.display = 'none';
 
