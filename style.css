@@ -163,7 +163,7 @@ body {
     align-items: center;
     background-color: var(--light-bg);
     padding: 4rem 2rem;
-    background-image: url('bmw.png'); 
+    background-image: url('bmw.webp'); 
     background-repeat: no-repeat;
     background-position: center center;
     background-size: 95% auto; 
@@ -324,7 +324,7 @@ body {
     align-items: center;
     padding: 4rem 2rem;
     
-    background-image: url('bmw.png'); 
+    background-image: url('bmw.webp'); 
     background-repeat: no-repeat;
     background-position: center center;
     background-size: cover;
