@@ -35,7 +35,9 @@ function renderTimeSlotButtonsSimple(slots) {
     return;
   }
 
-  container.innerHTML = slots.map(slot => {
+ container.innerHTML = slots
+  .filter(slot => slot.time !== '17:00')
+  .map(slot => {
     const { time, status, isExtra } = slot;
     const isBooked = status === 'booked' || status === 'blocked';
     const isSelected = bookingState.bookingTime === time && !isBooked;
